@@ -1,8 +1,4 @@
-package manager;
-
-import model.Subtask;
-import model.Task;
-import model.TaskStatus;
+package model;
 
 import java.util.ArrayList;
 import java.util.List;

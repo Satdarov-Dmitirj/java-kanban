@@ -1,4 +1,4 @@
-import manager.Epic;
+import model.Epic;
 import manager.TaskManager;
 import model.Subtask;
 import model.Task;

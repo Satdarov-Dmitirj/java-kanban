@@ -1,5 +1,6 @@
 package manager;
 
+import model.Epic;
 import model.Subtask;
 import model.Task;
 import model.TaskStatus;
