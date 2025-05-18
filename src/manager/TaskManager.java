@@ -1,3 +1,9 @@
+package manager;
+
+import model.Subtask;
+import model.Task;
+import model.TaskStatus;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -92,7 +98,6 @@ public class TaskManager {
         if (epic != null) {
             epic.updateStatus(getAllSubtasks());
         }
-
         return true;
     }
 
