@@ -1,12 +1,14 @@
-import model.Epic;
+import manager.HistoryManager;
+import manager.Managers;
 import manager.TaskManager;
+import model.Epic;
 import model.Subtask;
 import model.Task;
 import model.TaskStatus;
 
 public class Main {
     public static void main(String[] args) {
-        TaskManager manager = new TaskManager();
+        TaskManager manager = Managers.getDefault();
 
         Task task1 = manager.createTask(
                 new Task("Пройти теорию спринта", "Изучить материалы по ООП в Практикуме"));
@@ -48,7 +50,7 @@ public class Main {
     }
 
     private static void printAllTasks(TaskManager manager) {
-        System.out.println("Текущие учебные задачи");
+        System.out.println("Текущие учебные задачи:");
         System.out.println("Обычные задачи:");
         manager.getAllTasks().forEach(System.out::println);
 
@@ -59,8 +61,10 @@ public class Main {
         manager.getAllSubtasks().forEach(System.out::println);
 
         manager.getAllEpics().forEach(epic -> {
-            System.out.printf("Подзадачи эпика", epic.getTitle());
+            System.out.printf("Подзадачи эпика :", epic.getTitle());
             manager.getSubtasksByEpic(epic.getId()).forEach(System.out::println);
         });
+        System.out.println("История :");
+        manager.getHistory().forEach(System.out::println);
     }
 }
