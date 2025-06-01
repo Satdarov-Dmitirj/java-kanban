@@ -15,13 +15,10 @@ public class InMemoryHistoryManager implements HistoryManager {
             return;
         }
 
-        // Удаляем дубликаты
         history.remove(task);
 
-        // Добавляем в конец
         history.addLast(task);
 
-        // Удаляем лишнее
         if (history.size() > MAX_HISTORY_SIZE) {
             history.removeFirst();
         }
