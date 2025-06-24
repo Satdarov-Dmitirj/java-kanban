@@ -53,7 +53,9 @@ public class Epic extends Task {
                     break;
                 }
             }
-            if (!allDone && !allNew) break;
+            if (!allDone && !allNew) {
+                break;
+            }
         }
 
         if (allDone) {

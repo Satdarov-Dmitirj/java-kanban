@@ -27,10 +27,8 @@ public class InMemoryHistoryManager implements HistoryManager {
     public void add(Task task) {
         if (task == null) return;
 
-        // Удаляем существующую задачу (если есть)
         remove(task.getId());
 
-        // Добавляем в конец списка
         linkLast(task);
     }
 
