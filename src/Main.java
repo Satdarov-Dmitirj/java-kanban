@@ -39,7 +39,6 @@ public class Main {
         manager.updateTask(task1);
         manager.updateSubtask(sub1);
         manager.updateSubtask(sub2);
-
         printAllTasks(manager);
 
         System.out.println("Архивирую выполненные задачи");
