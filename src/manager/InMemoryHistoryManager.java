@@ -4,12 +4,12 @@ import model.Task;
 import java.util.*;
 
 public class InMemoryHistoryManager implements HistoryManager {
-    private static class Node {
-        Task task;
-        Node prev;
-        Node next;
+    private static final class Node {
+        private final Task task;
+        private Node prev;
+        private Node next;
 
-        Node(Task task, Node prev, Node next) {
+        private Node(Task task, Node prev, Node next) {
             this.task = task;
             this.prev = prev;
             this.next = next;
