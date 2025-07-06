@@ -38,8 +38,9 @@ class InMemoryTaskManagerTest {
 
     @Test
     void shouldNotCreateSubtaskWithoutEpic() {
-        Subtask subtask = manager.createSubtask(new Subtask("Subtask", "Description", 999));
-        assertNull(subtask);
+        assertThrows(IllegalArgumentException.class, () -> {
+            manager.createSubtask(new Subtask("Subtask", "Description", 999));
+        });
     }
 
     @Test
