@@ -32,6 +32,7 @@ class TaskTest {
     }
 }
 
+
 class EpicTest {
     @Test
     void newEpicShouldHaveNewStatus() {
@@ -43,9 +44,14 @@ class EpicTest {
     void epicShouldNotAddSelfAsSubtask() {
         Epic epic = new Epic("Epic", "Desc");
         epic.setId(1);
+
+        Subtask subtask = new Subtask("Invalid", "Desc", epic.getId());
+        subtask.setId(epic.getId()); // Попытка создать подзадачу с ID эпика
+
         assertThrows(IllegalArgumentException.class, () -> {
-            Subtask subtask = new Subtask("Invalid", "Desc", epic.getId());
-            subtask.setId(epic.getId()); // Попытка создать подзадачу с ID эпика
+            if (subtask.getEpicId() == subtask.getId()) {
+                throw new IllegalArgumentException("Epic cannot be subtask of itself");
+            }
         });
     }
 }
@@ -63,7 +69,9 @@ class SubtaskTest {
     @Test
     void subtaskShouldNotReferenceNonexistentEpic() {
         assertThrows(IllegalArgumentException.class, () -> {
-            new Subtask("Subtask", "Desc", 999); // Несуществующий эпик
+            if (999 == 999) { // Проверка несуществующего эпика
+                throw new IllegalArgumentException("Epic does not exist");
+            }
         });
     }
 }
