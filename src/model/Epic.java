@@ -12,9 +12,6 @@ public class Epic extends Task {
 
     public Epic(int id, String title, String description, TaskStatus status) {
         super(id, title, description, status);
-        if (id <= 0) {
-            throw new IllegalArgumentException("Epic ID must be positive");
-        }
     }
 
     public List<Integer> getSubtaskIds() {
@@ -33,11 +30,6 @@ public class Epic extends Task {
 
     public void clearSubtasks() {
         subtaskIds.clear();
-    }
-
-    @Override
-    public TaskType getType() {
-        return TaskType.EPIC;
     }
 
     public void updateStatus(List<Subtask> allSubtasks) {
@@ -62,6 +54,8 @@ public class Epic extends Task {
                     case DONE:
                         hasDone = true;
                         break;
+                    default:
+                        throw new IllegalStateException("Неизвестный статус подзадачи: " + subtask.getStatus());
                 }
             }
         }
@@ -73,5 +67,20 @@ public class Epic extends Task {
         } else {
             setStatus(TaskStatus.NEW);
         }
+    }
+
+    @Override
+    public TaskType getType() {
+        return TaskType.EPIC;
+    }
+
+    @Override
+    public String toString() {
+        return "Epic{id=" + getId() +
+                ", title='" + getTitle() + '\'' +
+                ", status=" + getStatus() +
+                ", description='" + getDescription() + '\'' +
+                ", subtaskIds=" + subtaskIds +
+                '}';
     }
 }
