@@ -18,8 +18,18 @@ public class Subtask extends Task {
     }
 
     @Override
+    public TaskType getType() {
+        return TaskType.SUBTASK;
+    }
+
+    @Override
     public String toString() {
-        return "Subtask{id=" + getId() + ", title='" + getTitle() + "', epicId="
-                + epicId + ", status=" + getStatus() + "}";
+        return "Subtask{id=" + getId() +
+                ", type=" + getType() +
+                ", title='" + getTitle() + '\'' +
+                ", status=" + getStatus() +
+                ", description='" + getDescription() + '\'' +
+                ", epicId=" + epicId +
+                '}';
     }
 }

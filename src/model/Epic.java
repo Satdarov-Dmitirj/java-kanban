@@ -32,6 +32,11 @@ public class Epic extends Task {
         subtaskIds.clear();
     }
 
+    @Override
+    public TaskType getType() {
+        return TaskType.EPIC;
+    }
+
     public void updateStatus(List<Subtask> allSubtasks) {
         if (subtaskIds.isEmpty()) {
             setStatus(TaskStatus.NEW);
@@ -65,5 +70,16 @@ public class Epic extends Task {
         } else {
             setStatus(TaskStatus.IN_PROGRESS);
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Epic{id=" + getId() +
+                ", type=" + getType() +
+                ", title='" + getTitle() + '\'' +
+                ", status=" + getStatus() +
+                ", description='" + getDescription() + '\'' +
+                ", subtaskIds=" + subtaskIds +
+                '}';
     }
 }
