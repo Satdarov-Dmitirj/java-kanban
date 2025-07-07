@@ -1,4 +1,3 @@
-
 package model;
 
 import java.util.Objects;
@@ -54,6 +53,10 @@ public class Task {
         this.status = status;
     }
 
+    public TaskType getType() {
+        return TaskType.TASK;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -69,6 +72,11 @@ public class Task {
 
     @Override
     public String toString() {
-        return "Task{id=" + id + ", title='" + title + "', status=" + status + "}";
+        return "Task{id=" + id +
+                ", type=" + getType() +
+                ", title='" + title + '\'' +
+                ", status=" + status +
+                ", description='" + description + '\'' +
+                '}';
     }
 }

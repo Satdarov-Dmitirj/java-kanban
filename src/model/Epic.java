@@ -33,37 +33,54 @@ public class Epic extends Task {
     }
 
     public void updateStatus(List<Subtask> allSubtasks) {
-        if (subtaskIds.isEmpty()) {
+        if (allSubtasks == null || allSubtasks.isEmpty()) {
             setStatus(TaskStatus.NEW);
             return;
         }
 
-        boolean allDone = true;
-        boolean allNew = true;
+        boolean hasNew = false;
+        boolean hasInProgress = false;
+        boolean hasDone = false;
 
-        for (int subtaskId : subtaskIds) {
-            for (Subtask subtask : allSubtasks) {
-                if (subtask.getId() == subtaskId) {
-                    if (subtask.getStatus() != TaskStatus.DONE) {
-                        allDone = false;
-                    }
-                    if (subtask.getStatus() != TaskStatus.NEW) {
-                        allNew = false;
-                    }
-                    break;
+        for (Subtask subtask : allSubtasks) {
+            if (subtask.getEpicId() == this.getId()) {
+                switch (subtask.getStatus()) {
+                    case NEW:
+                        hasNew = true;
+                        break;
+                    case IN_PROGRESS:
+                        hasInProgress = true;
+                        break;
+                    case DONE:
+                        hasDone = true;
+                        break;
+                    default:
+                        throw new IllegalStateException("Неизвестный статус подзадачи: " + subtask.getStatus());
                 }
             }
-            if (!allDone && !allNew) {
-                break;
-            }
         }
 
-        if (allDone) {
-            setStatus(TaskStatus.DONE);
-        } else if (allNew) {
-            setStatus(TaskStatus.NEW);
-        } else {
+        if (hasInProgress || (hasNew && hasDone)) {
             setStatus(TaskStatus.IN_PROGRESS);
+        } else if (hasDone && !hasNew && !hasInProgress) {
+            setStatus(TaskStatus.DONE);
+        } else {
+            setStatus(TaskStatus.NEW);
         }
+    }
+
+    @Override
+    public TaskType getType() {
+        return TaskType.EPIC;
+    }
+
+    @Override
+    public String toString() {
+        return "Epic{id=" + getId() +
+                ", title='" + getTitle() + '\'' +
+                ", status=" + getStatus() +
+                ", description='" + getDescription() + '\'' +
+                ", subtaskIds=" + subtaskIds +
+                '}';
     }
 }
