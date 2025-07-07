@@ -12,6 +12,9 @@ public class Epic extends Task {
 
     public Epic(int id, String title, String description, TaskStatus status) {
         super(id, title, description, status);
+        if (id <= 0) {
+            throw new IllegalArgumentException("Epic ID must be positive");
+        }
     }
 
     public List<Integer> getSubtaskIds() {
@@ -43,43 +46,22 @@ public class Epic extends Task {
             return;
         }
 
-        boolean allDone = true;
         boolean allNew = true;
+        boolean allDone = true;
 
-        for (int subtaskId : subtaskIds) {
-            for (Subtask subtask : allSubtasks) {
-                if (subtask.getId() == subtaskId) {
-                    if (subtask.getStatus() != TaskStatus.DONE) {
-                        allDone = false;
-                    }
-                    if (subtask.getStatus() != TaskStatus.NEW) {
-                        allNew = false;
-                    }
-                    break;
-                }
-            }
-            if (!allDone && !allNew) {
-                break;
+        for (Subtask subtask : allSubtasks) {
+            if (subtask.getEpicId() == this.getId()) {
+                if (subtask.getStatus() != TaskStatus.NEW) allNew = false;
+                if (subtask.getStatus() != TaskStatus.DONE) allDone = false;
             }
         }
 
-        if (allDone) {
-            setStatus(TaskStatus.DONE);
-        } else if (allNew) {
+        if (allNew) {
             setStatus(TaskStatus.NEW);
+        } else if (allDone) {
+            setStatus(TaskStatus.DONE);
         } else {
             setStatus(TaskStatus.IN_PROGRESS);
         }
-    }
-
-    @Override
-    public String toString() {
-        return "Epic{id=" + getId() +
-                ", type=" + getType() +
-                ", title='" + getTitle() + '\'' +
-                ", status=" + getStatus() +
-                ", description='" + getDescription() + '\'' +
-                ", subtaskIds=" + subtaskIds +
-                '}';
     }
 }

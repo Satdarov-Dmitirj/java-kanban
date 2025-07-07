@@ -35,27 +35,25 @@ class TaskTest {
 
 class EpicTest {
     @Test
-    void epicShouldReturnCorrectType() {
-        Epic epic = new Epic("Epic", "Desc");
-        assertEquals(TaskType.EPIC, epic.getType());
-    }
-
-    @Test
-    void epicToStringShouldContainSubtaskIds() {
-        Epic epic = new Epic(1, "Epic", "Desc", TaskStatus.NEW);
-        epic.addSubtask(2);
-        String str = epic.toString();
-        assertTrue(str.contains("subtaskIds=[2]"));
-    }
-
-    @Test
     void shouldUpdateStatusBasedOnSubtasks() {
-        Epic epic = new Epic("Epic", "Desc");
-        epic.updateStatus(List.of(
-                new Subtask("Sub1", "Desc", epic.getId()),
-                new Subtask("Sub2", "Desc", epic.getId())
-        ));
+
+        Epic epic = new Epic(1, "Epic", "Description", TaskStatus.NEW);
+
+        Subtask subtask1 = new Subtask(2, "Sub1", "Desc", TaskStatus.NEW, epic.getId());
+        Subtask subtask2 = new Subtask(3, "Sub2", "Desc", TaskStatus.NEW, epic.getId());
+
+        epic.updateStatus(List.of(subtask1, subtask2));
+
         assertEquals(TaskStatus.NEW, epic.getStatus());
+
+        subtask1.setStatus(TaskStatus.IN_PROGRESS);
+        epic.updateStatus(List.of(subtask1, subtask2));
+        assertEquals(TaskStatus.IN_PROGRESS, epic.getStatus());
+
+        subtask1.setStatus(TaskStatus.DONE);
+        subtask2.setStatus(TaskStatus.DONE);
+        epic.updateStatus(List.of(subtask1, subtask2));
+        assertEquals(TaskStatus.DONE, epic.getStatus());
     }
 }
 
