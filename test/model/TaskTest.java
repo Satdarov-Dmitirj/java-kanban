@@ -74,9 +74,13 @@ class SubtaskTest {
     }
 
     @Test
-    void shouldNotAcceptNullEpicId() {
+    void shouldNotAcceptInvalidEpicId() {
         assertThrows(IllegalArgumentException.class, () -> {
             new Subtask("Sub", "Desc", 0);
+        });
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            new Subtask(1, "Sub", "Desc", TaskStatus.NEW, -1);
         });
     }
 }
