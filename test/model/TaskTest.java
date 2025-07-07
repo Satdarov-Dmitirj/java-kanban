@@ -36,24 +36,28 @@ class TaskTest {
 class EpicTest {
     @Test
     void shouldUpdateStatusBasedOnSubtasks() {
-
         Epic epic = new Epic(1, "Epic", "Description", TaskStatus.NEW);
-
         Subtask subtask1 = new Subtask(2, "Sub1", "Desc", TaskStatus.NEW, epic.getId());
         Subtask subtask2 = new Subtask(3, "Sub2", "Desc", TaskStatus.NEW, epic.getId());
 
         epic.updateStatus(List.of(subtask1, subtask2));
-
-        assertEquals(TaskStatus.NEW, epic.getStatus());
+        assertEquals(TaskStatus.NEW, epic.getStatus(), "При всех NEW подзадачах эпик должен быть NEW");
 
         subtask1.setStatus(TaskStatus.IN_PROGRESS);
         epic.updateStatus(List.of(subtask1, subtask2));
-        assertEquals(TaskStatus.IN_PROGRESS, epic.getStatus());
+        assertEquals(TaskStatus.IN_PROGRESS, epic.getStatus(),
+                "При хотя бы одной IN_PROGRESS подзадаче эпик должен быть IN_PROGRESS");
 
         subtask1.setStatus(TaskStatus.DONE);
         subtask2.setStatus(TaskStatus.DONE);
         epic.updateStatus(List.of(subtask1, subtask2));
-        assertEquals(TaskStatus.DONE, epic.getStatus());
+        assertEquals(TaskStatus.DONE, epic.getStatus(), "При всех DONE подзадачах эпик должен быть DONE");
+
+        subtask1.setStatus(TaskStatus.NEW);
+        subtask2.setStatus(TaskStatus.DONE);
+        epic.updateStatus(List.of(subtask1, subtask2));
+        assertEquals(TaskStatus.IN_PROGRESS, epic.getStatus(),
+                "При разных статусах подзадач эпик должен быть IN_PROGRESS");
     }
 }
 
