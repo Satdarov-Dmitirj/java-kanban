@@ -2,6 +2,7 @@ package manager;
 
 import model.*;
 import org.junit.jupiter.api.*;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class InMemoryTaskManagerTest {
@@ -75,11 +76,11 @@ class InMemoryTaskManagerTest {
     }
 
     @Test
-    void shouldNotRemoveFromHistoryWhenDeletingTask() {
+    void shouldRemoveFromHistoryWhenDeletingTask() {
         Task task = manager.createTask(new Task("Test", "Desc"));
         manager.getTask(task.getId());
         manager.deleteTask(task.getId());
-        assertEquals(1, manager.getHistory().size());
+        assertEquals(0, manager.getHistory().size());
     }
 
     @Test
@@ -95,5 +96,28 @@ class InMemoryTaskManagerTest {
         subtask.setStatus(TaskStatus.DONE);
         manager.updateSubtask(subtask);
         assertEquals(TaskStatus.DONE, epic.getStatus());
+    }
+
+    @Test
+    void shouldGenerateUniqueIds() {
+        Task task1 = manager.createTask(new Task("Task1", "Desc"));
+        Task task2 = manager.createTask(new Task("Task2", "Desc"));
+        assertNotEquals(task1.getId(), task2.getId());
+    }
+
+    @Test
+    void shouldNotUpdateTaskWithWrongId() {
+        Task task = new Task("Task", "Desc");
+        task.setId(999);
+        assertFalse(manager.updateTask(task));
+    }
+
+    @Test
+    void shouldDeleteAllTasksAndClearHistory() {
+        Task task = manager.createTask(new Task("Task", "Desc"));
+        manager.getTask(task.getId());
+        manager.deleteAllTasks();
+        assertTrue(manager.getAllTasks().isEmpty());
+        assertTrue(manager.getHistory().isEmpty());
     }
 }
