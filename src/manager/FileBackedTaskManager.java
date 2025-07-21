@@ -25,19 +25,20 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
 
         try {
             String content = Files.readString(file.toPath());
-            String[] lines = content.split("\n");
-
-            if (lines.length <= 1) return manager;
-
-            List<Task> tasks = new ArrayList<>();
-            for (int i = 1; i < lines.length; i++) {
-                if (!lines[i].isEmpty()) {
-                    tasks.add(fromString(lines[i]));
-                }
+            if (content.isEmpty()) {
+                return manager;
             }
 
+            String[] lines = content.split("\n");
+            if (lines.length <= 1) return manager;
+
             // Восстановление задач
-            for (Task task : tasks) {
+            for (int i = 1; i < lines.length; i++) {
+                if (lines[i].isEmpty()) continue;
+
+                Task task = fromString(lines[i]);
+                if (task == null) continue;
+
                 switch (task.getType()) {
                     case TASK:
                         manager.tasks.put(task.getId(), task);
@@ -47,30 +48,29 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
                         manager.epics.put(task.getId(), (Epic) task);
                         break;
                     case SUBTASK:
-                        manager.subtasks.put(task.getId(), (Subtask) task);
-                        manager.addToPrioritizedTasks(task);
+                        Subtask subtask = (Subtask) task;
+                        manager.subtasks.put(subtask.getId(), subtask);
+                        manager.addToPrioritizedTasks(subtask);
+
+                        // Восстановление связи с эпиком
+                        Epic epic = manager.epics.get(subtask.getEpicId());
+                        if (epic != null) {
+                            epic.addSubtask(subtask.getId());
+                        }
                         break;
                 }
-            }
 
-            // Восстановление связей эпиков и подзадач
-            for (Subtask subtask : manager.subtasks.values()) {
-                Epic epic = manager.epics.get(subtask.getEpicId());
-                if (epic != null) {
-                    epic.addSubtask(subtask.getId());
+
+                if (task.getId() >= manager.nextId) {
+                    manager.nextId = task.getId() + 1;
                 }
             }
 
-            // Обновление статусов и времени эпиков
+
             for (Epic epic : manager.epics.values()) {
                 manager.updateEpicStatus(epic.getId());
-                manager.updateEpicTime(epic.getId());  // Теперь метод доступен
+                manager.updateEpicTime(epic.getId());
             }
-
-            // Установка следующего ID
-            manager.nextId = tasks.stream()
-                    .mapToInt(Task::getId)
-                    .max().orElse(0) + 1;
 
         } catch (IOException e) {
             throw new ManagerSaveException("Ошибка загрузки из файла", e);
@@ -82,6 +82,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
     private void save() {
         try {
             StringBuilder data = new StringBuilder(CSV_HEADER);
+
 
             for (Task task : getAllTasks()) {
                 data.append(toString(task)).append("\n");
@@ -114,73 +115,84 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
     }
 
     private static Task fromString(String value) {
-        String[] fields = value.split(",");
-        int id = Integer.parseInt(fields[0]);
-        TaskType type = TaskType.valueOf(fields[1]);
-        String title = fields[2];
-        TaskStatus status = TaskStatus.valueOf(fields[3]);
-        String description = fields[4];
-        LocalDateTime startTime = fields[5].isEmpty() ? null :
-                LocalDateTime.parse(fields[5], DATE_TIME_FORMATTER);
-        Duration duration = fields[6].isEmpty() ? null :
-                Duration.ofMinutes(Long.parseLong(fields[6]));
+        try {
+            String[] fields = value.split(",");
+            if (fields.length < 5) return null;
 
-        switch (type) {
-            case TASK:
-                return new Task(id, title, description, status, startTime, duration);
-            case EPIC:
-                Epic epic = new Epic(id, title, description, status);
-                epic.setStartTime(startTime);
-                epic.setDuration(duration);
-                return epic;
-            case SUBTASK:
-                int epicId = Integer.parseInt(fields[7]);
-                return new Subtask(id, title, description, status, startTime, duration, epicId);
-            default:
-                throw new IllegalStateException("Неизвестный тип задачи: " + type);
+            int id = Integer.parseInt(fields[0]);
+            TaskType type = TaskType.valueOf(fields[1]);
+            String title = fields[2];
+            TaskStatus status = TaskStatus.valueOf(fields[3]);
+            String description = fields[4];
+
+            LocalDateTime startTime = fields.length > 5 && !fields[5].isEmpty()
+                    ? LocalDateTime.parse(fields[5], DATE_TIME_FORMATTER)
+                    : null;
+            Duration duration = fields.length > 6 && !fields[6].isEmpty()
+                    ? Duration.ofMinutes(Long.parseLong(fields[6]))
+                    : null;
+
+            switch (type) {
+                case TASK:
+                    return new Task(id, title, description, status, startTime, duration);
+                case EPIC:
+                    Epic epic = new Epic(id, title, description, status);
+                    if (startTime != null) epic.setStartTime(startTime);
+                    if (duration != null) epic.setDuration(duration);
+                    return epic;
+                case SUBTASK:
+                    int epicId = fields.length > 7 ? Integer.parseInt(fields[7]) : 0;
+                    if (epicId <= 0) throw new IllegalArgumentException("Invalid epicId");
+                    return new Subtask(id, title, description, status, startTime, duration, epicId);
+                default:
+                    return null;
+            }
+        } catch (Exception e) {
+            return null;
         }
     }
 
+
     @Override
     public Task createTask(Task task) {
-        Task createdTask = super.createTask(task);
+        Task created = super.createTask(task);
         save();
-        return createdTask;
+        return created;
     }
 
     @Override
     public Epic createEpic(Epic epic) {
-        Epic createdEpic = super.createEpic(epic);
+        Epic created = super.createEpic(epic);
         save();
-        return createdEpic;
+        return created;
     }
 
     @Override
     public Subtask createSubtask(Subtask subtask) {
-        Subtask createdSubtask = super.createSubtask(subtask);
+        Subtask created = super.createSubtask(subtask);
         save();
-        return createdSubtask;
+        return created;
     }
 
     @Override
     public boolean updateTask(Task task) {
-        boolean result = super.updateTask(task);
-        if (result) save();
-        return result;
+        boolean updated = super.updateTask(task);
+        if (updated) save();
+        return updated;
     }
 
     @Override
     public boolean updateEpic(Epic epic) {
-        boolean result = super.updateEpic(epic);
-        if (result) save();
-        return result;
+        boolean updated = super.updateEpic(epic);
+        if (updated) save();
+        return updated;
     }
 
     @Override
     public boolean updateSubtask(Subtask subtask) {
-        boolean result = super.updateSubtask(subtask);
-        if (result) save();
-        return result;
+        boolean updated = super.updateSubtask(subtask);
+        if (updated) save();
+        return updated;
     }
 
     @Override
@@ -203,22 +215,22 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
 
     @Override
     public boolean deleteTask(int id) {
-        boolean result = super.deleteTask(id);
-        if (result) save();
-        return result;
+        boolean deleted = super.deleteTask(id);
+        if (deleted) save();
+        return deleted;
     }
 
     @Override
     public boolean deleteEpic(int id) {
-        boolean result = super.deleteEpic(id);
-        if (result) save();
-        return result;
+        boolean deleted = super.deleteEpic(id);
+        if (deleted) save();
+        return deleted;
     }
 
     @Override
     public boolean deleteSubtask(int id) {
-        boolean result = super.deleteSubtask(id);
-        if (result) save();
-        return result;
+        boolean deleted = super.deleteSubtask(id);
+        if (deleted) save();
+        return deleted;
     }
 }
