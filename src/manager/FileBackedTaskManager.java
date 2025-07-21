@@ -32,8 +32,9 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
             String[] lines = content.split("\n");
             if (lines.length <= 1) return manager;
 
-            // Восстановление задач и истории
             List<Integer> historyIds = new ArrayList<>();
+            Map<Integer, Task> allTasks = new HashMap<>();
+
             for (int i = 1; i < lines.length; i++) {
                 if (lines[i].isEmpty()) continue;
 
@@ -50,6 +51,8 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
                 Task task = fromString(lines[i]);
                 if (task == null) continue;
 
+                allTasks.put(task.getId(), task);
+
                 switch (task.getType()) {
                     case TASK:
                         manager.tasks.put(task.getId(), task);
@@ -62,7 +65,6 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
                         Subtask subtask = (Subtask) task;
                         manager.subtasks.put(subtask.getId(), subtask);
                         manager.addToPrioritizedTasks(subtask);
-
                         Epic epic = manager.epics.get(subtask.getEpicId());
                         if (epic != null) {
                             epic.addSubtask(subtask.getId());
@@ -75,15 +77,15 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
                 }
             }
 
-
+// Восстановление истории
             for (int id : historyIds) {
-                Task task = manager.getTask(id);
+                Task task = allTasks.get(id);
                 if (task != null) {
                     manager.historyManager.add(task);
                 }
             }
 
-
+// Обновление статусов и времени эпиков
             for (Epic epic : manager.epics.values()) {
                 manager.updateEpicStatus(epic.getId());
                 manager.updateEpicTime(epic.getId());
@@ -96,34 +98,23 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
         return manager;
     }
 
-    @Override
-    public Task getTask(int id) {
-        Task task = tasks.get(id);
-        if (task != null) return task;
-
-        task = epics.get(id);
-        if (task != null) return task;
-
-        return subtasks.get(id);
-    }
-
     private void save() {
         try {
             StringBuilder data = new StringBuilder(CSV_HEADER);
 
-            // Сохранение истории
+// Сохранение истории
             List<Task> history = getHistory();
             if (!history.isEmpty()) {
                 data.append("history,");
-                data.append(history.stream()
-                        .map(Task::getId)
-                        .map(String::valueOf)
-                        .reduce((a, b) -> a + "," + b)
-                        .orElse(""));
+                data.append(String.join(",",
+                        history.stream()
+                                .map(Task::getId)
+                                .map(String::valueOf)
+                                .toArray(String[]::new)));
                 data.append("\n");
             }
 
-
+// Сохранение задач
             for (Task task : getAllTasks()) {
                 data.append(toString(task)).append("\n");
             }
@@ -138,6 +129,37 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
         } catch (IOException e) {
             throw new ManagerSaveException("Ошибка сохранения в файл", e);
         }
+    }
+
+
+
+    public void updateEpicTime(int epicId) {
+        Epic epic = epics.get(epicId);
+        if (epic == null) return;
+
+        LocalDateTime start = null;
+        LocalDateTime end = null;
+        Duration totalDuration = Duration.ZERO;
+
+        for (int subtaskId : epic.getSubtaskIds()) {
+            Subtask subtask = subtasks.get(subtaskId);
+            if (subtask != null && subtask.getStartTime() != null) {
+                if (start == null || subtask.getStartTime().isBefore(start)) {
+                    start = subtask.getStartTime();
+                }
+
+                LocalDateTime subtaskEnd = subtask.getStartTime().plus(subtask.getDuration());
+                if (end == null || subtaskEnd.isAfter(end)) {
+                    end = subtaskEnd;
+                }
+
+                totalDuration = totalDuration.plus(subtask.getDuration());
+            }
+        }
+
+        epic.setStartTime(start);
+        epic.setEndTime(end);
+        epic.setDuration(totalDuration);
     }
 
     private String toString(Task task) {
@@ -174,22 +196,49 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
 
             switch (type) {
                 case TASK:
-                    return new Task(id, title, description, status, startTime, duration);
+                    Task task = new Task(title, description);
+                    task.setId(id);
+                    task.setStatus(status);
+                    task.setStartTime(startTime);
+                    task.setDuration(duration);
+                    return task;
                 case EPIC:
-                    Epic epic = new Epic(id, title, description, status);
-                    if (startTime != null) epic.setStartTime(startTime);
-                    if (duration != null) epic.setDuration(duration);
+                    Epic epic = new Epic(title, description);
+                    epic.setId(id);
+                    epic.setStatus(status);
+                    epic.setStartTime(startTime);
+                    epic.setDuration(duration);
                     return epic;
                 case SUBTASK:
                     int epicId = fields.length > 7 ? Integer.parseInt(fields[7]) : 0;
                     if (epicId <= 0) throw new IllegalArgumentException("Invalid epicId");
-                    return new Subtask(id, title, description, status, startTime, duration, epicId);
+                    Subtask subtask = new Subtask(title, description, epicId);
+                    subtask.setId(id);
+                    subtask.setStatus(status);
+                    subtask.setStartTime(startTime);
+                    subtask.setDuration(duration);
+                    return subtask;
                 default:
                     return null;
             }
         } catch (Exception e) {
             return null;
         }
+    }
+
+    @Override
+    public Task getTask(int id) {
+        return super.getTask(id);
+    }
+
+    @Override
+    public Epic getEpic(int id) {
+        return super.getEpic(id);
+    }
+
+    @Override
+    public Subtask getSubtask(int id) {
+        return super.getSubtask(id);
     }
 
     @Override

@@ -92,9 +92,10 @@ class FileBackedTaskManagerTest {
         Epic epic = manager.createEpic(new Epic("Epic", "Description"));
         Subtask subtask = manager.createSubtask(new Subtask("Subtask", "Description", epic.getId()));
 
-        manager.getTask(task.getId());
-        manager.getEpic(epic.getId());
-        manager.getSubtask(subtask.getId());
+        // Явно добавляем в историю
+        manager.addToHistory(task);
+        manager.addToHistory(epic);
+        manager.addToHistory(subtask);
 
         FileBackedTaskManager loaded = FileBackedTaskManager.loadFromFile(tempFile);
 
@@ -146,12 +147,12 @@ class FileBackedTaskManagerTest {
         Subtask subtask1 = new Subtask("Sub1", "Desc", epic.getId());
         subtask1.setStartTime(startTime);
         subtask1.setDuration(duration);
-        subtask1 = manager.createSubtask(subtask1);
+        manager.createSubtask(subtask1);
 
         Subtask subtask2 = new Subtask("Sub2", "Desc", epic.getId());
         subtask2.setStartTime(startTime.plusHours(1));
         subtask2.setDuration(duration);
-        subtask2 = manager.createSubtask(subtask2);
+        manager.createSubtask(subtask2);
 
         FileBackedTaskManager loaded = FileBackedTaskManager.loadFromFile(tempFile);
         Epic loadedEpic = loaded.getEpic(epic.getId());
