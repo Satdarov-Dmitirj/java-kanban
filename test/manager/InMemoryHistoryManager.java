@@ -1,34 +1,29 @@
 package manager;
 
 import model.Task;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class InMemoryHistoryManager implements HistoryManager {
+
     private final Map<Integer, Node> historyMap = new HashMap<>();
+
     private Node head;
     private Node tail;
 
     @Override
     public void add(Task task) {
-        if (task == null) {
-            return;
+        if (task == null) return;
+
+        int taskId = task.getId();
+
+
+        if (historyMap.containsKey(taskId)) {
+            removeNode(historyMap.get(taskId));
         }
 
-        remove(task.getId());
 
-        linkLast(task);
-    }
-
-    @Override
-    public void remove(int id) {
-        Node node = historyMap.remove(id);
-        if (node != null) {
-            removeNode(node);
-        }
+        Node newNode = linkLast(task);
+        historyMap.put(taskId, newNode);
     }
 
     @Override
@@ -42,27 +37,48 @@ public class InMemoryHistoryManager implements HistoryManager {
         return history;
     }
 
-    private void linkLast(Task task) {
-        final Node newNode = new Node(task, tail, null);
-        if (tail == null) {
+    @Override
+    public void remove(int id) {
+        Node node = historyMap.get(id);
+        if (node != null) {
+            removeNode(node);
+            historyMap.remove(id);
+        }
+    }
+
+
+    private Node linkLast(Task task) {
+        Node newNode = new Node(tail, task, null);
+
+        if (head == null) {
+            // Список пуст: новый узел — и голова, и хвост
             head = newNode;
         } else {
+            // Иначе добавляем после текущего хвоста
             tail.next = newNode;
         }
+
+
         tail = newNode;
-        historyMap.put(task.getId(), newNode);
+        return newNode;
     }
 
     private void removeNode(Node node) {
+        if (node == null) return;
+
+
         if (node.prev != null) {
             node.prev.next = node.next;
         } else {
+            // Это был head
             head = node.next;
         }
 
+        // Обновляем следующий элемент
         if (node.next != null) {
             node.next.prev = node.prev;
         } else {
+            // Это был tail
             tail = node.prev;
         }
     }
@@ -72,7 +88,7 @@ public class InMemoryHistoryManager implements HistoryManager {
         Node prev;
         Node next;
 
-        Node(Task task, Node prev, Node next) {
+        Node(Node prev, Task task, Node next) {
             this.task = task;
             this.prev = prev;
             this.next = next;

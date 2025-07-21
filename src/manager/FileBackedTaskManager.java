@@ -20,9 +20,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
         this.file = file;
     }
 
-    /**
-     * Загружает менеджер из файла
-     */
+
     public static FileBackedTaskManager loadFromFile(File file) {
         FileBackedTaskManager manager = new FileBackedTaskManager(file);
 
@@ -80,7 +78,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
                 }
             }
 
-            // Восстановление истории просмотров
+
             for (int id : historyIds) {
                 Task task = allTasks.get(id);
                 if (task != null) {
@@ -88,7 +86,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
                 }
             }
 
-            // Обновление статусов и времён эпиков
+
             for (Epic epic : manager.epics.values()) {
                 manager.updateEpicStatus(epic.getId());
                 manager.updateEpicTime(epic.getId());
@@ -101,9 +99,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
         return manager;
     }
 
-    /**
-     * Сохраняет текущее состояние менеджера в файл
-     */
+
     private void save() {
         try {
             StringBuilder data = new StringBuilder(CSV_HEADER);
@@ -118,7 +114,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
                 data.append("\n");
             }
 
-            // Сохранение всех задач
+
             for (Task task : getAllTasks()) {
                 data.append(toString(task)).append("\n");
             }
@@ -136,30 +132,30 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
         }
     }
 
-    // === Переопределённые методы получения задач (с автосохранением) ===
+
 
     @Override
     public Task getTask(int id) {
-        Task task = super.getTask(id); // автоматически добавляет в историю
+        Task task = super.getTask(id);
         save();
         return task;
     }
 
     @Override
     public Epic getEpic(int id) {
-        Epic epic = super.getEpic(id); // добавляет в историю
+        Epic epic = super.getEpic(id);
         save();
         return epic;
     }
 
     @Override
     public Subtask getSubtask(int id) {
-        Subtask subtask = super.getSubtask(id); // добавляет в историю
+        Subtask subtask = super.getSubtask(id);
         save();
         return subtask;
     }
 
-    // === Переопределённые методы изменений (уже с save) ===
+
 
     @Override
     public Task createTask(Task task) {
@@ -242,7 +238,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
         return deleted;
     }
 
-    // === Вспомогательные методы для сериализации ===
+
 
     private String toString(Task task) {
         String startTime = task.getStartTime() != null ? task.getStartTime().format(DATE_TIME_FORMATTER) : "";

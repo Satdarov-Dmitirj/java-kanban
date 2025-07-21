@@ -25,10 +25,10 @@ public class InMemoryHistoryManager implements HistoryManager {
     public void add(Task task) {
         if (task == null) return;
 
-        // Удаляем задачу, если она уже есть в истории
+
         remove(task.getId());
 
-        // Добавляем задачу в конец списка
+
         Node newNode = new Node(task);
         linkLast(newNode);
         historyMap.put(task.getId(), newNode);
@@ -55,25 +55,25 @@ public class InMemoryHistoryManager implements HistoryManager {
 
     private void linkLast(Node newNode) {
         if (head == null) {
-            head = newNode;
+            head = tail = newNode;
         } else {
             tail.next = newNode;
             newNode.prev = tail;
+            tail = newNode;
         }
-        tail = newNode;
     }
 
     private void removeNode(Node node) {
         if (node.prev != null) {
             node.prev.next = node.next;
         } else {
-            head = node.next;
+            head = node.next; // node — это head
         }
 
         if (node.next != null) {
             node.next.prev = node.prev;
         } else {
-            tail = node.prev;
+            tail = node.prev; // node — это tail
         }
     }
 }
