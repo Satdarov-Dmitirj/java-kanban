@@ -6,10 +6,7 @@ import java.util.Objects;
 
 public class Subtask extends Task {
     private final int epicId;
-
-    // Проверка валидности epicId
     private static final int MIN_EPIC_ID = 1;
-
 
     public Subtask(String title, String description, int epicId) {
         super(title, description);
@@ -17,20 +14,17 @@ public class Subtask extends Task {
         this.epicId = epicId;
     }
 
-
     public Subtask(int id, String title, String description, int epicId) {
         super(id, title, description, TaskStatus.NEW);
         validateEpicId(epicId);
         this.epicId = epicId;
     }
 
-
     public Subtask(int id, String title, String description, TaskStatus status, int epicId) {
         super(id, title, description, status);
         validateEpicId(epicId);
         this.epicId = epicId;
     }
-
 
     public Subtask(int id, String title, String description, TaskStatus status,
                    LocalDateTime startTime, Duration duration, int epicId) {
@@ -58,15 +52,13 @@ public class Subtask extends Task {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        if (!super.equals(o)) return false;
-
-        Subtask that = (Subtask) o;
-        return epicId == that.epicId;
+        Subtask subtask = (Subtask) o;
+        return getId() == subtask.getId(); // Сравниваем только ID
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), epicId);
+        return Objects.hash(getId()); // Хэш только по ID
     }
 
     @Override

@@ -15,19 +15,13 @@ class SubtaskTest {
     @Test
     void shouldContainEpicIdInToString() {
         Subtask subtask = new Subtask(1, "Sub", "Desc", TaskStatus.NEW, 2);
-        String str = subtask.toString();
-        assertTrue(str.contains("epicId=2"), "toString() должен содержать epicId");
+        assertTrue(subtask.toString().contains("epicId=2"));
     }
 
     @Test
     void shouldRejectInvalidEpicId() {
-        assertThrows(IllegalArgumentException.class,
-                () -> new Subtask("Sub", "Desc", 0),
-                "Должно выбрасываться исключение при epicId = 0");
-
-        assertThrows(IllegalArgumentException.class,
-                () -> new Subtask(1, "Sub", "Desc", TaskStatus.NEW, -1),
-                "Должно выбрасываться исключение при epicId = -1");
+        assertThrows(IllegalArgumentException.class, () -> new Subtask("Sub", "Desc", 0));
+        assertThrows(IllegalArgumentException.class, () -> new Subtask(1, "Sub", "Desc", TaskStatus.NEW, -1));
     }
 
     @Test
@@ -36,9 +30,9 @@ class SubtaskTest {
         Duration duration = Duration.ofMinutes(45);
         Subtask subtask = new Subtask(1, "Sub", "Desc", TaskStatus.NEW, start, duration, 2);
 
-        assertEquals(start, subtask.getStartTime(), "Некорректное время начала");
-        assertEquals(duration, subtask.getDuration(), "Некорректная продолжительность");
-        assertEquals(start.plus(duration), subtask.getEndTime(), "Некорректное время окончания");
+        assertEquals(start, subtask.getStartTime());
+        assertEquals(duration, subtask.getDuration());
+        assertEquals(start.plus(duration), subtask.getEndTime());
     }
 
     @Test
@@ -47,12 +41,17 @@ class SubtaskTest {
         Subtask sub2 = new Subtask(1, "Sub 2", "Different", TaskStatus.DONE, 2);
 
         assertEquals(sub1, sub2, "Подзадачи с одинаковым ID должны быть равны");
-        assertEquals(sub1.hashCode(), sub2.hashCode(), "Хэш-коды подзадач с одинаковым ID должны совпадать");
+        assertEquals(sub1.hashCode(), sub2.hashCode(), "Хэш-коды должны совпадать для одинаковых ID");
+
+        // Проверяем, что действительно разные поля
+        assertNotEquals(sub1.getTitle(), sub2.getTitle());
+        assertNotEquals(sub1.getDescription(), sub2.getDescription());
+        assertNotEquals(sub1.getStatus(), sub2.getStatus());
     }
 
     @Test
     void shouldReturnCorrectEpicId() {
         Subtask subtask = new Subtask(1, "Sub", "Desc", 10);
-        assertEquals(10, subtask.getEpicId(), "Некорректный epicId");
+        assertEquals(10, subtask.getEpicId());
     }
 }
