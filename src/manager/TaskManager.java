@@ -1,6 +1,9 @@
 package manager;
 
-import model.*;
+import model.Epic;
+import model.Subtask;
+import model.Task;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface TaskManager {
@@ -16,6 +19,7 @@ public interface TaskManager {
 
     Subtask getSubtask(int id);
 
+
     List<Task> getAllTasks();
 
     List<Subtask> getAllSubtasks();
@@ -24,11 +28,14 @@ public interface TaskManager {
 
     List<Subtask> getSubtasksByEpic(int epicId);
 
-    boolean updateTask(Task task);
+    default boolean updateTask(Task task) {
+        return false;
+    }
 
     boolean updateEpic(Epic epic);
 
     boolean updateSubtask(Subtask subtask);
+
 
     void deleteAllTasks();
 
@@ -43,4 +50,14 @@ public interface TaskManager {
     boolean deleteSubtask(int id);
 
     List<Task> getHistory();
+
+    List<Task> getPrioritizedTasks();
+
+    boolean isTaskOverlapping(Task task);
+
+    void updateEpicTime(int epicId);
+
+    void updateEpicStatus(int epicId);
+
+    LocalDateTime getTaskEndTime(int id);
 }

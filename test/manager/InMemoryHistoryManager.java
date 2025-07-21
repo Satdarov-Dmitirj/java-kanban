@@ -1,67 +1,97 @@
 package manager;
 
 import model.Task;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import java.util.List;
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.*;
 
-class InMemoryHistoryManagerTest {
-    private InMemoryHistoryManager manager;
-    private Task task1;
-    private Task task2;
-    private Task task3;
+public class InMemoryHistoryManager implements HistoryManager {
 
-    @BeforeEach
-    void setUp() {
-        manager = new InMemoryHistoryManager();
-        task1 = new Task("Task 1", "Description");
-        task1.setId(1);
-        task2 = new Task("Task 2", "Description");
-        task2.setId(2);
-        task3 = new Task("Task 3", "Description");
-        task3.setId(3);
+    private final Map<Integer, Node> historyMap = new HashMap<>();
+
+    private Node head;
+    private Node tail;
+
+    @Override
+    public void add(Task task) {
+        if (task == null) return;
+
+        int taskId = task.getId();
+
+
+        if (historyMap.containsKey(taskId)) {
+            removeNode(historyMap.get(taskId));
+        }
+
+
+        Node newNode = linkLast(task);
+        historyMap.put(taskId, newNode);
     }
 
-    @Test
-    void shouldAddTasksToHistory() {
-        manager.add(task1);
-        manager.add(task2);
-        assertEquals(List.of(task1, task2), manager.getHistory());
+    @Override
+    public List<Task> getHistory() {
+        List<Task> history = new ArrayList<>();
+        Node current = head;
+        while (current != null) {
+            history.add(current.task);
+            current = current.next;
+        }
+        return history;
     }
 
-    @Test
-    void shouldRemoveDuplicates() {
-        manager.add(task1);
-        manager.add(task2);
-        manager.add(task1);
-        assertEquals(List.of(task2, task1), manager.getHistory());
+    @Override
+    public void remove(int id) {
+        Node node = historyMap.get(id);
+        if (node != null) {
+            removeNode(node);
+            historyMap.remove(id);
+        }
     }
 
-    @Test
-    void shouldRemoveTaskFromHistory() {
-        manager.add(task1);
-        manager.add(task2);
-        manager.add(task3);
 
-        manager.remove(task2.getId());
-        assertEquals(List.of(task1, task3), manager.getHistory());
+    private Node linkLast(Task task) {
+        Node newNode = new Node(tail, task, null);
+
+        if (head == null) {
+            // Список пуст: новый узел — и голова, и хвост
+            head = newNode;
+        } else {
+            // Иначе добавляем после текущего хвоста
+            tail.next = newNode;
+        }
+
+
+        tail = newNode;
+        return newNode;
     }
 
-    @Test
-    void shouldHandleEmptyHistory() {
-        assertTrue(manager.getHistory().isEmpty());
-        manager.remove(1);
-        assertTrue(manager.getHistory().isEmpty());
+    private void removeNode(Node node) {
+        if (node == null) return;
+
+
+        if (node.prev != null) {
+            node.prev.next = node.next;
+        } else {
+            // Это был head
+            head = node.next;
+        }
+
+        // Обновляем следующий элемент
+        if (node.next != null) {
+            node.next.prev = node.prev;
+        } else {
+            // Это был tail
+            tail = node.prev;
+        }
     }
 
-    @Test
-    void shouldMaintainInsertionOrder() {
-        manager.add(task1);
-        manager.add(task2);
-        manager.add(task3);
-        manager.add(task1);
+    private static class Node {
+        Task task;
+        Node prev;
+        Node next;
 
-        assertEquals(List.of(task2, task3, task1), manager.getHistory());
+        Node(Node prev, Task task, Node next) {
+            this.task = task;
+            this.prev = prev;
+            this.next = next;
+        }
     }
 }

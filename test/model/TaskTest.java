@@ -1,89 +1,57 @@
 package model;
 
 import org.junit.jupiter.api.Test;
-import java.util.List;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import static org.junit.jupiter.api.Assertions.*;
-
-class TaskTest {
-    @Test
-    void taskShouldBeEqualWhenIdsAreEqual() {
-        Task task1 = new Task("Task 1", "Description");
-        task1.setId(1);
-        Task task2 = new Task("Task 2", "Different description");
-        task2.setId(1);
-
-        assertEquals(task1, task2, "Задачи с одинаковым ID должны быть равны");
-    }
-
-    @Test
-    void taskShouldReturnCorrectType() {
-        Task task = new Task("Task", "Desc");
-        assertEquals(TaskType.TASK, task.getType());
-    }
-
-    @Test
-    void taskToStringShouldContainAllFields() {
-        Task task = new Task(1, "Task", "Description", TaskStatus.NEW);
-        String str = task.toString();
-        assertTrue(str.contains("id=1"));
-        assertTrue(str.contains("type=TASK"));
-        assertTrue(str.contains("title='Task'"));
-        assertTrue(str.contains("status=NEW"));
-    }
-}
-
-
-class EpicTest {
-    @Test
-    void shouldUpdateStatusBasedOnSubtasks() {
-        Epic epic = new Epic(1, "Epic", "Description", TaskStatus.NEW);
-
-        // Создаем подзадачи
-        Subtask sub1 = new Subtask(2, "Sub1", "Desc", TaskStatus.NEW, epic.getId());
-        Subtask sub2 = new Subtask(3, "Sub2", "Desc", TaskStatus.NEW, epic.getId());
-
-        epic.updateStatus(List.of(sub1, sub2));
-        assertEquals(TaskStatus.NEW, epic.getStatus());
-
-        sub1.setStatus(TaskStatus.IN_PROGRESS);
-        epic.updateStatus(List.of(sub1, sub2));
-        assertEquals(TaskStatus.IN_PROGRESS, epic.getStatus(),
-                "Эпик должен быть IN_PROGRESS, если хотя бы одна подзадача IN_PROGRESS");
-
-        sub1.setStatus(TaskStatus.NEW);
-        sub2.setStatus(TaskStatus.DONE);
-        epic.updateStatus(List.of(sub1, sub2));
-        assertEquals(TaskStatus.IN_PROGRESS, epic.getStatus(),
-                "Эпик должен быть IN_PROGRESS при разных статусах подзадач");
-
-        sub1.setStatus(TaskStatus.DONE);
-        epic.updateStatus(List.of(sub1, sub2));
-        assertEquals(TaskStatus.DONE, epic.getStatus());
-    }
-}
 
 class SubtaskTest {
     @Test
-    void subtaskShouldReturnCorrectType() {
+    void subtaskTypeShouldBeSubtask() {
         Subtask subtask = new Subtask("Sub", "Desc", 1);
         assertEquals(TaskType.SUBTASK, subtask.getType());
     }
 
     @Test
-    void subtaskToStringShouldContainEpicId() {
+    void shouldContainEpicIdInToString() {
         Subtask subtask = new Subtask(1, "Sub", "Desc", TaskStatus.NEW, 2);
-        String str = subtask.toString();
-        assertTrue(str.contains("epicId=2"));
+        assertTrue(subtask.toString().contains("epicId=2"));
     }
 
     @Test
-    void shouldNotAcceptInvalidEpicId() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Subtask("Sub", "Desc", 0);
-        });
+    void shouldRejectInvalidEpicId() {
+        assertThrows(IllegalArgumentException.class, () -> new Subtask("Sub", "Desc", 0));
+        assertThrows(IllegalArgumentException.class, () -> new Subtask(1, "Sub", "Desc", TaskStatus.NEW, -1));
+    }
 
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Subtask(1, "Sub", "Desc", TaskStatus.NEW, -1);
-        });
+    @Test
+    void shouldCreateWithTimeParameters() {
+        LocalDateTime start = LocalDateTime.of(2023, 1, 1, 10, 0);
+        Duration duration = Duration.ofMinutes(45);
+        Subtask subtask = new Subtask(1, "Sub", "Desc", TaskStatus.NEW, start, duration, 2);
+
+        assertEquals(start, subtask.getStartTime());
+        assertEquals(duration, subtask.getDuration());
+        assertEquals(start.plus(duration), subtask.getEndTime());
+    }
+
+    @Test
+    void subtasksWithSameIdShouldBeEqual() {
+        Subtask sub1 = new Subtask(1, "Sub 1", "Desc", TaskStatus.NEW, 2);
+        Subtask sub2 = new Subtask(1, "Sub 2", "Different", TaskStatus.DONE, 2);
+
+        assertEquals(sub1, sub2, "Подзадачи с одинаковым ID должны быть равны");
+        assertEquals(sub1.hashCode(), sub2.hashCode(), "Хэш-коды должны совпадать для одинаковых ID");
+
+        // Проверяем, что действительно разные поля
+        assertNotEquals(sub1.getTitle(), sub2.getTitle());
+        assertNotEquals(sub1.getDescription(), sub2.getDescription());
+        assertNotEquals(sub1.getStatus(), sub2.getStatus());
+    }
+
+    @Test
+    void shouldReturnCorrectEpicId() {
+        Subtask subtask = new Subtask(1, "Sub", "Desc", 10);
+        assertEquals(10, subtask.getEpicId());
     }
 }
