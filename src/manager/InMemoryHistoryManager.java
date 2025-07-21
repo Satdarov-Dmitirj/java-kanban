@@ -22,10 +22,10 @@ public class InMemoryHistoryManager implements HistoryManager {
     public void add(Task task) {
         if (task == null) return;
 
-        // Удаляем, если уже есть
+
         remove(task.getId());
 
-        // Создаём и добавляем новый узел
+
         Node newNode = new Node(task);
         linkLast(newNode);
         historyMap.put(task.getId(), newNode);
