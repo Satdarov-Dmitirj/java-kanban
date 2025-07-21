@@ -59,13 +59,16 @@ class FileBackedTaskManagerTest {
         LocalDateTime startTime = LocalDateTime.now();
         Duration duration = Duration.ofMinutes(30);
 
-        Task task = new Task(0, "Task", "Description", TaskStatus.NEW, startTime, duration);
+        Task task = new Task("Task", "Description");
+        task.setStartTime(startTime);
+        task.setDuration(duration);
         task = manager.createTask(task);
 
         Epic epic = manager.createEpic(new Epic("Epic", "Description"));
 
-        Subtask subtask = new Subtask(0, "Subtask", "Description", TaskStatus.NEW,
-                startTime.plusHours(1), duration, epic.getId());
+        Subtask subtask = new Subtask("Subtask", "Description", epic.getId());
+        subtask.setStartTime(startTime.plusHours(1));
+        subtask.setDuration(duration);
         subtask = manager.createSubtask(subtask);
 
         FileBackedTaskManager loaded = FileBackedTaskManager.loadFromFile(tempFile);
@@ -139,10 +142,15 @@ class FileBackedTaskManagerTest {
         Duration duration = Duration.ofMinutes(30);
 
         Epic epic = manager.createEpic(new Epic("Epic", "Description"));
-        Subtask subtask1 = new Subtask(0, "Sub1", "Desc", TaskStatus.NEW, startTime, duration, epic.getId());
-        Subtask subtask2 = new Subtask(0, "Sub2", "Desc", TaskStatus.NEW, startTime.plusHours(1), duration, epic.getId());
 
+        Subtask subtask1 = new Subtask("Sub1", "Desc", epic.getId());
+        subtask1.setStartTime(startTime);
+        subtask1.setDuration(duration);
         subtask1 = manager.createSubtask(subtask1);
+
+        Subtask subtask2 = new Subtask("Sub2", "Desc", epic.getId());
+        subtask2.setStartTime(startTime.plusHours(1));
+        subtask2.setDuration(duration);
         subtask2 = manager.createSubtask(subtask2);
 
         FileBackedTaskManager loaded = FileBackedTaskManager.loadFromFile(tempFile);
