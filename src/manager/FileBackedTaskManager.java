@@ -32,9 +32,20 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
             String[] lines = content.split("\n");
             if (lines.length <= 1) return manager;
 
-            // Восстановление задач
+            // Восстановление задач и истории
+            List<Integer> historyIds = new ArrayList<>();
             for (int i = 1; i < lines.length; i++) {
                 if (lines[i].isEmpty()) continue;
+
+                if (lines[i].startsWith("history,")) {
+                    String[] ids = lines[i].substring(8).split(",");
+                    for (String id : ids) {
+                        if (!id.isEmpty()) {
+                            historyIds.add(Integer.parseInt(id));
+                        }
+                    }
+                    continue;
+                }
 
                 Task task = fromString(lines[i]);
                 if (task == null) continue;
@@ -52,7 +63,6 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
                         manager.subtasks.put(subtask.getId(), subtask);
                         manager.addToPrioritizedTasks(subtask);
 
-                        // Восстановление связи с эпиком
                         Epic epic = manager.epics.get(subtask.getEpicId());
                         if (epic != null) {
                             epic.addSubtask(subtask.getId());
@@ -60,9 +70,16 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
                         break;
                 }
 
-
                 if (task.getId() >= manager.nextId) {
                     manager.nextId = task.getId() + 1;
+                }
+            }
+
+
+            for (int id : historyIds) {
+                Task task = manager.getTask(id);
+                if (task != null) {
+                    manager.historyManager.add(task);
                 }
             }
 
@@ -79,9 +96,32 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
         return manager;
     }
 
+    @Override
+    public Task getTask(int id) {
+        Task task = tasks.get(id);
+        if (task != null) return task;
+
+        task = epics.get(id);
+        if (task != null) return task;
+
+        return subtasks.get(id);
+    }
+
     private void save() {
         try {
             StringBuilder data = new StringBuilder(CSV_HEADER);
+
+            // Сохранение истории
+            List<Task> history = getHistory();
+            if (!history.isEmpty()) {
+                data.append("history,");
+                data.append(history.stream()
+                        .map(Task::getId)
+                        .map(String::valueOf)
+                        .reduce((a, b) -> a + "," + b)
+                        .orElse(""));
+                data.append("\n");
+            }
 
 
             for (Task task : getAllTasks()) {
@@ -151,7 +191,6 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
             return null;
         }
     }
-
 
     @Override
     public Task createTask(Task task) {
