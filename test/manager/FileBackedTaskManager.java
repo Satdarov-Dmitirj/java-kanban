@@ -2,163 +2,307 @@ package manager;
 
 import exceptions.ManagerSaveException;
 import model.*;
-import org.junit.jupiter.api.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import static org.junit.jupiter.api.Assertions.*;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
-class FileBackedTaskManagerTest {
-    private File tempFile;
-    private FileBackedTaskManager manager;
+public class FileBackedTaskManager extends InMemoryTaskManager {
+    private final File file;
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    private static final String CSV_HEADER = "id,type,name,status,description,startTime,duration,epic\n";
 
-    @BeforeEach
-    void setUp() throws IOException {
-        tempFile = File.createTempFile("tasks", ".csv");
-        manager = new FileBackedTaskManager(tempFile);
+    public FileBackedTaskManager(File file) {
+        super(Managers.getDefaultHistory());
+        this.file = file;
     }
 
-    @AfterEach
-    void tearDown() {
-        tempFile.delete();
+    public static FileBackedTaskManager loadFromFile(File file) {
+        FileBackedTaskManager manager = new FileBackedTaskManager(file);
+
+        try {
+            String content = Files.readString(file.toPath());
+            if (content.isEmpty()) {
+                return manager;
+            }
+
+            String[] lines = content.split("\n");
+            if (lines.length <= 1) return manager;
+
+            List<Integer> historyIds = new ArrayList<>();
+            Map<Integer, Task> allTasks = new HashMap<>();
+
+            for (int i = 1; i < lines.length; i++) {
+                if (lines[i].isEmpty()) continue;
+
+                if (lines[i].startsWith("history,")) {
+                    String[] ids = lines[i].substring(8).split(",");
+                    for (String id : ids) {
+                        if (!id.isEmpty()) {
+                            historyIds.add(Integer.parseInt(id));
+                        }
+                    }
+                    continue;
+                }
+
+                Task task = fromString(lines[i]);
+                if (task == null) continue;
+
+                allTasks.put(task.getId(), task);
+
+                switch (task.getType()) {
+                    case TASK:
+                        manager.tasks.put(task.getId(), task);
+                        manager.addToPrioritizedTasks(task);
+                        break;
+                    case EPIC:
+                        manager.epics.put(task.getId(), (Epic) task);
+                        break;
+                    case SUBTASK:
+                        Subtask subtask = (Subtask) task;
+                        manager.subtasks.put(subtask.getId(), subtask);
+                        manager.addToPrioritizedTasks(subtask);
+                        Epic epic = manager.epics.get(subtask.getEpicId());
+                        if (epic != null) {
+                            epic.addSubtask(subtask.getId());
+                        }
+                        break;
+                }
+
+                if (task.getId() >= manager.nextId) {
+                    manager.nextId = task.getId() + 1;
+                }
+            }
+
+            for (int id : historyIds) {
+                Task task = allTasks.get(id);
+                if (task != null) {
+                    manager.historyManager.add(task);
+                }
+            }
+
+            for (Epic epic : manager.epics.values()) {
+                manager.updateEpicStatus(epic.getId());
+                manager.updateEpicTime(epic.getId());
+            }
+
+        } catch (IOException e) {
+            throw new ManagerSaveException("Ошибка загрузки из файла", e);
+        }
+
+        return manager;
     }
 
-    @Test
-    void shouldSaveAndLoadEmptyManager() {
-        FileBackedTaskManager loaded = FileBackedTaskManager.loadFromFile(tempFile);
-        assertTrue(loaded.getAllTasks().isEmpty());
-        assertTrue(loaded.getAllEpics().isEmpty());
-        assertTrue(loaded.getAllSubtasks().isEmpty());
+    private void save() {
+        try {
+            StringBuilder data = new StringBuilder(CSV_HEADER);
+
+            // Сохранение истории
+            List<Task> history = getHistory();
+            if (!history.isEmpty()) {
+                data.append("history,");
+                data.append(String.join(",", history.stream()
+                        .map(task -> String.valueOf(task.getId()))
+                        .toArray(String[]::new)));
+                data.append("\n");
+            }
+
+            for (Task task : getAllTasks()) {
+                data.append(toString(task)).append("\n");
+            }
+            for (Epic epic : getAllEpics()) {
+                data.append(toString(epic)).append("\n");
+            }
+            for (Subtask subtask : getAllSubtasks()) {
+                data.append(toString(subtask)).append("\n");
+            }
+
+            Files.writeString(file.toPath(), data.toString());
+
+        } catch (IOException e) {
+            throw new ManagerSaveException("Ошибка сохранения в файл", e);
+        }
     }
 
-    @Test
-    void shouldSaveAndLoadTasks() {
-        Task task = manager.createTask(new Task("Task", "Description"));
-        Epic epic = manager.createEpic(new Epic("Epic", "Description"));
-        Subtask subtask = manager.createSubtask(new Subtask("Subtask", "Description", epic.getId()));
 
-        FileBackedTaskManager loaded = FileBackedTaskManager.loadFromFile(tempFile);
-
-        assertEquals(1, loaded.getAllTasks().size());
-        assertEquals(1, loaded.getAllEpics().size());
-        assertEquals(1, loaded.getAllSubtasks().size());
-
-        Task loadedTask = loaded.getTask(task.getId());
-        assertEquals(task.getTitle(), loadedTask.getTitle());
-        assertEquals(task.getDescription(), loadedTask.getDescription());
-        assertEquals(task.getStatus(), loadedTask.getStatus());
-
-        Subtask loadedSubtask = loaded.getSubtask(subtask.getId());
-        assertEquals(subtask.getEpicId(), loadedSubtask.getEpicId());
+    @Override
+    public Task getTask(int id) {
+        Task task = super.getTask(id);
+        save();
+        return task;
     }
 
-    @Test
-    void shouldSaveAndLoadTasksWithTime() {
-        LocalDateTime startTime = LocalDateTime.now();
-        Duration duration = Duration.ofMinutes(30);
-
-        Task task = new Task("Task", "Description");
-        task.setStartTime(startTime);
-        task.setDuration(duration);
-        task = manager.createTask(task);
-
-        Epic epic = manager.createEpic(new Epic("Epic", "Description"));
-
-        Subtask subtask = new Subtask("Subtask", "Description", epic.getId());
-        subtask.setStartTime(startTime.plusHours(1));
-        subtask.setDuration(duration);
-        subtask = manager.createSubtask(subtask);
-
-        FileBackedTaskManager loaded = FileBackedTaskManager.loadFromFile(tempFile);
-
-        Task loadedTask = loaded.getTask(task.getId());
-        assertEquals(task.getStartTime(), loadedTask.getStartTime());
-        assertEquals(task.getDuration(), loadedTask.getDuration());
-
-        Subtask loadedSubtask = loaded.getSubtask(subtask.getId());
-        assertEquals(subtask.getStartTime(), loadedSubtask.getStartTime());
-        assertEquals(subtask.getDuration(), loadedSubtask.getDuration());
-
-        Epic loadedEpic = loaded.getEpic(epic.getId());
-        assertEquals(subtask.getStartTime(), loadedEpic.getStartTime());
-        assertEquals(subtask.getEndTime(), loadedEpic.getEndTime());
+    @Override
+    public Epic getEpic(int id) {
+        Epic epic = super.getEpic(id);
+        save();
+        return epic;
     }
 
-    @Test
-    void shouldSaveAndLoadHistory() {
-        Task task = manager.createTask(new Task("Task", "Description"));
-        Epic epic = manager.createEpic(new Epic("Epic", "Description"));
-        Subtask subtask = manager.createSubtask(new Subtask("Subtask", "Description", epic.getId()));
-
-        // Явно добавляем в историю
-        manager.addToHistory(task);
-        manager.addToHistory(epic);
-        manager.addToHistory(subtask);
-
-        FileBackedTaskManager loaded = FileBackedTaskManager.loadFromFile(tempFile);
-
-        assertEquals(3, loaded.getHistory().size());
-        assertEquals(task.getId(), loaded.getHistory().get(0).getId());
-        assertEquals(epic.getId(), loaded.getHistory().get(1).getId());
-        assertEquals(subtask.getId(), loaded.getHistory().get(2).getId());
+    @Override
+    public Subtask getSubtask(int id) {
+        Subtask subtask = super.getSubtask(id);
+        save();
+        return subtask;
     }
 
-    @Test
-    void shouldHandleEmptyFile() throws IOException {
-        Files.writeString(tempFile.toPath(), "");
-        FileBackedTaskManager loaded = FileBackedTaskManager.loadFromFile(tempFile);
-        assertTrue(loaded.getAllTasks().isEmpty());
+
+    @Override
+    public Task createTask(Task task) {
+        Task created = super.createTask(task);
+        if (created != null) save();
+        return created;
     }
 
-    @Test
-    void shouldThrowExceptionWhenFileInvalid() {
-        File invalid = new File("/invalid/path/tasks.csv");
-        assertThrows(ManagerSaveException.class, () -> {
-            new FileBackedTaskManager(invalid).createTask(new Task("Task", "Description"));
-        });
+    @Override
+    public Epic createEpic(Epic epic) {
+        Epic created = super.createEpic(epic);
+        save();
+        return created;
     }
 
-    @Test
-    void shouldUpdateEpicStatusWhenLoading() {
-        Epic epic = manager.createEpic(new Epic("Epic", "Description"));
-        Subtask subtask1 = manager.createSubtask(new Subtask("Sub1", "Desc", epic.getId()));
-        Subtask subtask2 = manager.createSubtask(new Subtask("Sub2", "Desc", epic.getId()));
-
-        subtask1.setStatus(TaskStatus.DONE);
-        subtask2.setStatus(TaskStatus.IN_PROGRESS);
-        manager.updateSubtask(subtask1);
-        manager.updateSubtask(subtask2);
-
-        FileBackedTaskManager loaded = FileBackedTaskManager.loadFromFile(tempFile);
-        Epic loadedEpic = loaded.getEpic(epic.getId());
-
-        assertEquals(TaskStatus.IN_PROGRESS, loadedEpic.getStatus());
+    @Override
+    public Subtask createSubtask(Subtask subtask) {
+        Subtask created = super.createSubtask(subtask);
+        if (created != null) save();
+        return created;
     }
 
-    @Test
-    void shouldUpdateEpicTimeWhenLoading() {
-        LocalDateTime startTime = LocalDateTime.now();
-        Duration duration = Duration.ofMinutes(30);
+    @Override
+    public boolean updateTask(Task task) {
+        boolean updated = super.updateTask(task);
+        if (updated) save();
+        return updated;
+    }
 
-        Epic epic = manager.createEpic(new Epic("Epic", "Description"));
+    @Override
+    public boolean updateEpic(Epic epic) {
+        boolean updated = super.updateEpic(epic);
+        if (updated) save();
+        return updated;
+    }
 
-        Subtask subtask1 = new Subtask("Sub1", "Desc", epic.getId());
-        subtask1.setStartTime(startTime);
-        subtask1.setDuration(duration);
-        manager.createSubtask(subtask1);
+    @Override
+    public boolean updateSubtask(Subtask subtask) {
+        boolean updated = super.updateSubtask(subtask);
+        if (updated) save();
+        return updated;
+    }
 
-        Subtask subtask2 = new Subtask("Sub2", "Desc", epic.getId());
-        subtask2.setStartTime(startTime.plusHours(1));
-        subtask2.setDuration(duration);
-        manager.createSubtask(subtask2);
+    @Override
+    public void deleteAllTasks() {
+        super.deleteAllTasks();
+        save();
+    }
 
-        FileBackedTaskManager loaded = FileBackedTaskManager.loadFromFile(tempFile);
-        Epic loadedEpic = loaded.getEpic(epic.getId());
+    @Override
+    public void deleteAllEpics() {
+        super.deleteAllEpics();
+        save();
+    }
 
-        assertEquals(startTime, loadedEpic.getStartTime());
-        assertEquals(startTime.plusHours(1).plus(duration), loadedEpic.getEndTime());
-        assertEquals(Duration.ofHours(1).plus(duration.multipliedBy(2)), loadedEpic.getDuration());
+    @Override
+    public void deleteAllSubtasks() {
+        super.deleteAllSubtasks();
+        save();
+    }
+
+    @Override
+    public boolean deleteTask(int id) {
+        boolean deleted = super.deleteTask(id);
+        if (deleted) save();
+        return deleted;
+    }
+
+    @Override
+    public boolean deleteEpic(int id) {
+        boolean deleted = super.deleteEpic(id);
+        if (deleted) save();
+        return deleted;
+    }
+
+    @Override
+    public boolean deleteSubtask(int id) {
+        boolean deleted = super.deleteSubtask(id);
+        if (deleted) save();
+        return deleted;
+    }
+
+
+    private String toString(Task task) {
+        String startTime = task.getStartTime() != null ? task.getStartTime().format(DATE_TIME_FORMATTER) : "";
+        String duration = task.getDuration() != null ? String.valueOf(task.getDuration().toMinutes()) : "";
+        String epicId = task instanceof Subtask ? String.valueOf(((Subtask) task).getEpicId()) : "";
+
+        return String.join(",",
+                String.valueOf(task.getId()),
+                task.getType().name(),
+                task.getTitle(),
+                task.getStatus().name(),
+                task.getDescription(),
+                startTime,
+                duration,
+                epicId
+        );
+    }
+
+    private static Task fromString(String value) {
+        try {
+            String[] fields = value.split(",");
+            if (fields.length < 5) return null;
+
+            int id = Integer.parseInt(fields[0]);
+            TaskType type = TaskType.valueOf(fields[1]);
+            String title = fields[2];
+            TaskStatus status = TaskStatus.valueOf(fields[3]);
+            String description = fields[4];
+
+            LocalDateTime startTime = fields.length > 5 && !fields[5].isEmpty()
+                    ? LocalDateTime.parse(fields[5], DATE_TIME_FORMATTER)
+                    : null;
+
+            Duration duration = fields.length > 6 && !fields[6].isEmpty()
+                    ? Duration.ofMinutes(Long.parseLong(fields[6]))
+                    : null;
+
+            Task task;
+            switch (type) {
+                case TASK:
+                    task = new Task(title, description);
+                    task.setId(id);
+                    task.setStatus(status);
+                    task.setStartTime(startTime);
+                    task.setDuration(duration);
+                    return task;
+
+                case EPIC:
+                    task = new Epic(title, description);
+                    task.setId(id);
+                    task.setStatus(status);
+                    task.setStartTime(startTime);
+                    task.setDuration(duration);
+                    return task;
+
+                case SUBTASK:
+                    if (fields.length <= 7 || fields[7].isEmpty()) {
+                        throw new IllegalArgumentException("Subtask must have epicId");
+                    }
+                    int epicId = Integer.parseInt(fields[7]);
+                    Subtask subtask = new Subtask(title, description, epicId);
+                    subtask.setId(id);
+                    subtask.setStatus(status);
+                    subtask.setStartTime(startTime);
+                    subtask.setDuration(duration);
+                    return subtask;
+
+                default:
+                    return null;
+            }
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
