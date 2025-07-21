@@ -1,10 +1,7 @@
 package manager;
 
 import model.Task;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class InMemoryHistoryManager implements HistoryManager {
     private final Map<Integer, Node> historyMap = new HashMap<>();
@@ -25,21 +22,13 @@ public class InMemoryHistoryManager implements HistoryManager {
     public void add(Task task) {
         if (task == null) return;
 
-
+        // Удаляем, если уже есть
         remove(task.getId());
 
-
+        // Создаём и добавляем новый узел
         Node newNode = new Node(task);
         linkLast(newNode);
         historyMap.put(task.getId(), newNode);
-    }
-
-    @Override
-    public void remove(int id) {
-        Node node = historyMap.remove(id);
-        if (node != null) {
-            removeNode(node);
-        }
     }
 
     @Override
@@ -51,6 +40,14 @@ public class InMemoryHistoryManager implements HistoryManager {
             current = current.next;
         }
         return history;
+    }
+
+    @Override
+    public void remove(int id) {
+        Node node = historyMap.remove(id);
+        if (node != null) {
+            removeNode(node);
+        }
     }
 
     private void linkLast(Node newNode) {
@@ -67,13 +64,13 @@ public class InMemoryHistoryManager implements HistoryManager {
         if (node.prev != null) {
             node.prev.next = node.next;
         } else {
-            head = node.next; // node — это head
+            head = node.next;
         }
 
         if (node.next != null) {
             node.next.prev = node.prev;
         } else {
-            tail = node.prev; // node — это tail
+            tail = node.prev;
         }
     }
 }

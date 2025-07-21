@@ -15,10 +15,13 @@ public class HistoryManagerTest {
 
     @BeforeEach
     void setUp() {
-        manager = new InMemoryHistoryManager(); // или другая реализация
+        manager = new InMemoryHistoryManager();
         task1 = new Task("Task1", "Description 1");
+        task1.setId(1);
         task2 = new Task("Task2", "Description 2");
+        task2.setId(2);
         task3 = new Task("Task3", "Description 3");
+        task3.setId(3);
     }
 
     @Test
