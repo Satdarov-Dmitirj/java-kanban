@@ -2,6 +2,8 @@ package manager;
 
 import model.*;
 import org.junit.jupiter.api.*;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -15,6 +17,7 @@ class InMemoryTaskManagerTest {
         manager = new InMemoryTaskManager(historyManager);
     }
 
+    // Существующие тесты остаются без изменений
     @Test
     void createAndGetTask() {
         Task task = manager.createTask(new Task("Test", "Description"));
@@ -39,10 +42,10 @@ class InMemoryTaskManagerTest {
 
     @Test
     void shouldNotCreateSubtaskWithoutEpic() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            manager.createSubtask(new Subtask("Subtask", "Description", 999));
-        });
+        Subtask invalidSubtask = new Subtask("Subtask", "Description", 999);
+        assertNull(manager.createSubtask(invalidSubtask));
     }
+
 
     @Test
     void getAllTasks() {
@@ -89,14 +92,6 @@ class InMemoryTaskManagerTest {
         assertEquals(TaskStatus.NEW, epic.getStatus());
     }
 
-    @Test
-    void epicStatusShouldBeDoneWhenAllSubtasksDone() {
-        Epic epic = manager.createEpic(new Epic("Epic", "Desc"));
-        Subtask subtask = manager.createSubtask(new Subtask("Sub", "Desc", epic.getId()));
-        subtask.setStatus(TaskStatus.DONE);
-        manager.updateSubtask(subtask);
-        assertEquals(TaskStatus.DONE, epic.getStatus());
-    }
 
     @Test
     void shouldGenerateUniqueIds() {
@@ -119,5 +114,144 @@ class InMemoryTaskManagerTest {
         manager.deleteAllTasks();
         assertTrue(manager.getAllTasks().isEmpty());
         assertTrue(manager.getHistory().isEmpty());
+    }
+
+    // Новые тесты для статусов Epic
+    @Test
+    void epicStatusShouldBeNewWhenAllSubtasksNew() {
+        Epic epic = manager.createEpic(new Epic("Epic", "Desc"));
+        Subtask subtask1 = manager.createSubtask(new Subtask("Sub1", "Desc", epic.getId()));
+        Subtask subtask2 = manager.createSubtask(new Subtask("Sub2", "Desc", epic.getId()));
+        assertEquals(TaskStatus.NEW, epic.getStatus());
+    }
+
+    @Test
+    void epicStatusShouldBeDoneWhenAllSubtasksDone() {
+        Epic epic = manager.createEpic(new Epic("Epic", "Desc"));
+        Subtask subtask1 = manager.createSubtask(new Subtask("Sub1", "Desc", epic.getId()));
+        Subtask subtask2 = manager.createSubtask(new Subtask("Sub2", "Desc", epic.getId()));
+        subtask1.setStatus(TaskStatus.DONE);
+        subtask2.setStatus(TaskStatus.DONE);
+        manager.updateSubtask(subtask1);
+        manager.updateSubtask(subtask2);
+        assertEquals(TaskStatus.DONE, epic.getStatus());
+    }
+
+    @Test
+    void epicStatusShouldBeInProgressWhenSubtasksNewAndDone() {
+        Epic epic = manager.createEpic(new Epic("Epic", "Desc"));
+        Subtask subtask1 = manager.createSubtask(new Subtask("Sub1", "Desc", epic.getId()));
+        Subtask subtask2 = manager.createSubtask(new Subtask("Sub2", "Desc", epic.getId()));
+        subtask1.setStatus(TaskStatus.DONE);
+        manager.updateSubtask(subtask1);
+        assertEquals(TaskStatus.IN_PROGRESS, epic.getStatus());
+    }
+
+    @Test
+    void epicStatusShouldBeInProgressWhenAnySubtaskInProgress() {
+        Epic epic = manager.createEpic(new Epic("Epic", "Desc"));
+        Subtask subtask1 = manager.createSubtask(new Subtask("Sub1", "Desc", epic.getId()));
+        Subtask subtask2 = manager.createSubtask(new Subtask("Sub2", "Desc", epic.getId()));
+        subtask1.setStatus(TaskStatus.IN_PROGRESS);
+        manager.updateSubtask(subtask1);
+        assertEquals(TaskStatus.IN_PROGRESS, epic.getStatus());
+    }
+
+    // Тесты для проверки пересечения интервалов
+    @Test
+    void shouldNotAllowOverlappingTasks() {
+        LocalDateTime now = LocalDateTime.now();
+        Task task1 = new Task("Task1", "Desc");
+        task1.setStartTime(now);
+        task1.setDuration(Duration.ofHours(1));
+        manager.createTask(task1);
+
+        Task task2 = new Task("Task2", "Desc");
+        task2.setStartTime(now.plusMinutes(30));
+        task2.setDuration(Duration.ofHours(1));
+
+        assertNull(manager.createTask(task2));
+    }
+
+    @Test
+    void shouldAllowNonOverlappingTasks() {
+        LocalDateTime now = LocalDateTime.now();
+        Task task1 = new Task("Task1", "Desc");
+        task1.setStartTime(now);
+        task1.setDuration(Duration.ofHours(1));
+        manager.createTask(task1);
+
+        Task task2 = new Task("Task2", "Desc");
+        task2.setStartTime(now.plusHours(2));
+        task2.setDuration(Duration.ofHours(1));
+
+        assertNotNull(manager.createTask(task2));
+    }
+
+    // Тесты для HistoryManager
+    @Test
+    void shouldReturnEmptyHistoryWhenNoTasksViewed() {
+        assertTrue(manager.getHistory().isEmpty());
+    }
+
+    @Test
+    void shouldNotAddDuplicatesToHistory() {
+        Task task = manager.createTask(new Task("Task", "Desc"));
+        manager.getTask(task.getId());
+        manager.getTask(task.getId());
+        assertEquals(1, manager.getHistory().size());
+    }
+
+    @Test
+    void shouldRemoveTaskFromHistoryWhenDeleted() {
+        Task task = manager.createTask(new Task("Task", "Desc"));
+        manager.getTask(task.getId());
+        manager.deleteTask(task.getId());
+        assertTrue(manager.getHistory().isEmpty());
+    }
+
+    @Test
+    void shouldRemoveEpicFromHistoryWhenDeleted() {
+        Epic epic = manager.createEpic(new Epic("Epic", "Desc"));
+        manager.getEpic(epic.getId());
+        manager.deleteEpic(epic.getId());
+        assertTrue(manager.getHistory().isEmpty());
+    }
+
+    @Test
+    void shouldRemoveSubtaskFromHistoryWhenDeleted() {
+        Epic epic = manager.createEpic(new Epic("Epic", "Desc"));
+        Subtask subtask = manager.createSubtask(new Subtask("Sub", "Desc", epic.getId()));
+        manager.getSubtask(subtask.getId());
+        manager.deleteSubtask(subtask.getId());
+        assertTrue(manager.getHistory().isEmpty());
+    }
+
+    // Тесты для временных характеристик Epic
+    @Test
+    void shouldCalculateEpicTimeWhenNoSubtasks() {
+        Epic epic = manager.createEpic(new Epic("Epic", "Desc"));
+        assertNull(epic.getStartTime());
+        assertEquals(Duration.ZERO, epic.getDuration()); // или assertNull(epic.getDuration())
+        assertNull(epic.getEndTime());
+    }
+
+    @Test
+    void shouldCalculateEpicTimeWithSubtasks() {
+        Epic epic = manager.createEpic(new Epic("Epic", "Desc"));
+        LocalDateTime start = LocalDateTime.now();
+        Subtask subtask1 = new Subtask("Sub1", "Desc", epic.getId());
+        subtask1.setStartTime(start);
+        subtask1.setDuration(Duration.ofHours(1));
+        manager.createSubtask(subtask1);
+
+        Subtask subtask2 = new Subtask("Sub2", "Desc", epic.getId());
+        subtask2.setStartTime(start.plusHours(2));
+        subtask2.setDuration(Duration.ofHours(1));
+        manager.createSubtask(subtask2);
+
+        assertEquals(start, epic.getStartTime());
+        assertEquals(Duration.ofHours(2), epic.getDuration()); // Сумма 1h + 1h
+        assertEquals(start.plusHours(3), epic.getEndTime()); // Последняя подзадача заканчивается через 3 часа
     }
 }
