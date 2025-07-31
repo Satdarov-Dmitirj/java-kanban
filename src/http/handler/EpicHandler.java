@@ -109,6 +109,11 @@ public class EpicHandler extends BaseHttpHandler implements HttpHandler {
             String[] pathParts = path.split("/");
             if (pathParts.length == 4) {
                 int epicId = extractIdFromPath(path);
+                Epic epic = taskManager.getEpic(epicId);
+                if (epic == null) {
+                    sendNotFound(exchange);
+                    return;
+                }
                 List<Subtask> subtasks = taskManager.getSubtasksByEpic(epicId);
                 sendText(exchange, subtasks, 200);
             } else {

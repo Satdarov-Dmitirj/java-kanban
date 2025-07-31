@@ -1,32 +1,30 @@
+
 package http;
 
-import com.google.gson.Gson;
 import manager.Managers;
 import manager.TaskManager;
 import model.Task;
 import model.TaskStatus;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TaskHandlerTest {
     private HttpTaskServer server;
     private TaskManager taskManager;
-    private Gson gson;
 
     @BeforeEach
     public void setUp() throws Exception {
         taskManager = Managers.getDefault();
         server = new HttpTaskServer(taskManager);
         server.start();
-        gson = new Gson();
     }
 
     @AfterEach
@@ -36,8 +34,11 @@ public class TaskHandlerTest {
 
     @Test
     public void testCreateTask_Success() throws Exception {
-        Task task = new Task("Test Task", "Description of Test Task");
-        String jsonBody = gson.toJson(task);
+        String jsonBody = "{\n" +
+                "  \"title\": \"Test Task\",\n" +
+                "  \"description\": \"Description of Test Task\",\n" +
+                "  \"status\": \"NEW\"\n" +
+                "}";
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
@@ -86,8 +87,12 @@ public class TaskHandlerTest {
         assertNotNull(createdTask);
         int originalId = createdTask.getId();
 
-        Task updatedTask = new Task(originalId, "Updated Task", "Updated Description", TaskStatus.IN_PROGRESS);
-        String jsonBody = gson.toJson(updatedTask);
+        String jsonBody = "{\n" +
+                "  \"id\": " + originalId + ",\n" +
+                "  \"title\": \"Updated Task\",\n" +
+                "  \"description\": \"Updated Description\",\n" +
+                "  \"status\": \"IN_PROGRESS\"\n" +
+                "}";
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
@@ -125,7 +130,6 @@ public class TaskHandlerTest {
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         assertEquals(200, response.statusCode());
-        assertNotNull(response.body());
         assertNull(taskManager.getTask(taskId));
     }
 

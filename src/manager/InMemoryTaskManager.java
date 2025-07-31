@@ -228,7 +228,6 @@ public class InMemoryTaskManager implements TaskManager {
         if (epic == null || epic.getSubtaskIds().isEmpty()) {
             epic.setStartTime(null);
             epic.setDuration(Duration.ZERO);
-            epic.setEndTime(null);
             return;
         }
 
@@ -260,11 +259,9 @@ public class InMemoryTaskManager implements TaskManager {
         if (earliestStart != null && latestEnd != null) {
             epic.setStartTime(earliestStart);
             epic.setDuration(totalDuration);
-            epic.setEndTime(latestEnd);
         } else {
             epic.setStartTime(null);
             epic.setDuration(Duration.ZERO);
-            epic.setEndTime(null);
         }
     }
 

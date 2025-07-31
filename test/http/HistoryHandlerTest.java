@@ -1,6 +1,5 @@
 package http;
 
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import manager.Managers;
 import manager.TaskManager;
@@ -21,14 +20,12 @@ import static org.junit.jupiter.api.Assertions.*;
 public class HistoryHandlerTest {
     private HttpTaskServer server;
     private TaskManager taskManager;
-    private Gson gson;
 
     @BeforeEach
     public void setUp() throws Exception {
         taskManager = Managers.getDefault();
         server = new HttpTaskServer(taskManager);
         server.start();
-        gson = new Gson();
     }
 
     @AfterEach
@@ -59,6 +56,7 @@ public class HistoryHandlerTest {
         Task createdTask2 = taskManager.createTask(task2);
 
         HttpClient client = HttpClient.newHttpClient();
+
         HttpRequest getRequest1 = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:8080/tasks/" + createdTask1.getId()))
                 .GET()
@@ -84,11 +82,11 @@ public class HistoryHandlerTest {
         assertTrue(response.body().contains("Task 1"));
         assertTrue(response.body().contains("Task 2"));
 
-        Type listType = new TypeToken<List<Task>>(){}.getType();
-        List<Task> history = gson.fromJson(response.body(), listType);
-        assertEquals(2, history.size());
-        assertEquals("Task 2", history.get(0).getTitle());
-        assertEquals("Task 1", history.get(1).getTitle());
+        Type listType = new TypeToken<List<Task>>() {}.getType();
+        List<Task> historyFromApi = server.getGson().fromJson(response.body(), listType);
+        assertEquals(2, historyFromApi.size());
+        assertEquals("Task 2", historyFromApi.get(0).getTitle());
+        assertEquals("Task 1", historyFromApi.get(1).getTitle());
     }
 
     @Test

@@ -1,6 +1,5 @@
 package http;
 
-import com.google.gson.Gson;
 import manager.Managers;
 import manager.TaskManager;
 import model.Epic;
@@ -18,16 +17,15 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubtaskHandlerTest {
+
     private HttpTaskServer server;
     private TaskManager taskManager;
-    private Gson gson;
 
     @BeforeEach
     public void setUp() throws Exception {
         taskManager = Managers.getDefault();
         server = new HttpTaskServer(taskManager);
         server.start();
-        gson = new Gson();
     }
 
     @AfterEach
@@ -37,14 +35,19 @@ public class SubtaskHandlerTest {
 
     @Test
     public void testCreateSubtask_Success() throws Exception {
-
-        Epic epic = new Epic("Test Epic", "Description of Test Epic");
+        Epic epic = new Epic("Epic for New Subtask", "Description of Epic for New Subtask");
         Epic createdEpic = taskManager.createEpic(epic);
-        assertNotNull(createdEpic, "Эпик должен быть успешно создан");
+        assertNotNull(createdEpic);
+        int epicId = createdEpic.getId();
 
-        Subtask subtask = new Subtask("Test Subtask", "Description of Test Subtask", createdEpic.getId());
-        String jsonBody = gson.toJson(subtask);
-
+        String jsonBody = String.format("""
+            {
+              "title": "Newly Created Subtask",
+              "description": "Description of the newly created subtask",
+              "status": "NEW",
+              "epicId": %d
+            }
+            """, epicId).trim();
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
@@ -55,29 +58,26 @@ public class SubtaskHandlerTest {
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
+        assertEquals(201, response.statusCode());
+        assertNotNull(response.body());
+        assertFalse(response.body().isEmpty());
 
-        assertEquals(201, response.statusCode(), "Ожидается код 201 при успешном создании подзадачи");
-        assertNotNull(response.body(), "Тело ответа не должно быть null");
-        assertFalse(response.body().isEmpty(), "Тело ответа не должно быть пустым");
-
-
-        assertFalse(taskManager.getAllSubtasks().isEmpty(), "Список подзадач в менеджере не должен быть пустым после создания");
+        assertFalse(taskManager.getAllSubtasks().isEmpty());
         Subtask createdSubtaskInManager = taskManager.getAllSubtasks().get(0);
-        assertEquals("Test Subtask", createdSubtaskInManager.getTitle(), "Название подзадачи должно совпадать");
-        assertEquals("Description of Test Subtask", createdSubtaskInManager.getDescription(), "Описание подзадачи должно совпадать");
-        assertEquals(createdEpic.getId(), createdSubtaskInManager.getEpicId(), "ID эпика должен совпадать");
-        assertNotEquals(0, createdSubtaskInManager.getId(), "ID подзадачи должен быть назначен");
+        assertEquals("Newly Created Subtask", createdSubtaskInManager.getTitle());
+        assertEquals("Description of the newly created subtask", createdSubtaskInManager.getDescription());
+        assertEquals(epicId, createdSubtaskInManager.getEpicId());
+        assertNotEquals(0, createdSubtaskInManager.getId());
     }
 
     @Test
     public void testGetAllSubtasks_Success() throws Exception {
-
-        Epic epic = new Epic("Test Epic", "Description");
+        Epic epic = new Epic("Epic for Subtasks List", "Description");
         Epic createdEpic = taskManager.createEpic(epic);
+        int epicId = createdEpic.getId();
 
-        taskManager.createSubtask(new Subtask("Test Subtask 1", "Description 1", createdEpic.getId()));
-        taskManager.createSubtask(new Subtask("Test Subtask 2", "Description 2", createdEpic.getId()));
-
+        taskManager.createSubtask(new Subtask("Test Subtask 1", "Desc 1", epicId));
+        taskManager.createSubtask(new Subtask("Test Subtask 2", "Desc 2", epicId));
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
@@ -87,25 +87,23 @@ public class SubtaskHandlerTest {
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-
-        assertEquals(200, response.statusCode(), "Ожидается код 200 при успешном получении списка подзадач");
-        assertNotNull(response.body(), "Тело ответа не должно быть null");
-        assertFalse(response.body().isEmpty(), "Тело ответа не должно быть пустым");
-        assertTrue(response.body().contains("Test Subtask 1"), "Ответ должен содержать 'Test Subtask 1'");
-        assertTrue(response.body().contains("Test Subtask 2"), "Ответ должен содержать 'Test Subtask 2'");
+        assertEquals(200, response.statusCode());
+        assertNotNull(response.body());
+        assertFalse(response.body().isEmpty());
+        assertTrue(response.body().contains("Test Subtask 1"));
+        assertTrue(response.body().contains("Test Subtask 2"));
     }
 
     @Test
     public void testGetSubtaskById_Success() throws Exception {
-
-        Epic epic = new Epic("Test Epic", "Description");
+        Epic epic = new Epic("Epic for Get By ID", "Description");
         Epic createdEpic = taskManager.createEpic(epic);
+        int epicId = createdEpic.getId();
 
-        Subtask subtaskToCreate = new Subtask("Test Subtask", "Description", createdEpic.getId());
+        Subtask subtaskToCreate = new Subtask("Test Subtask", "Test Description", epicId);
         Subtask createdSubtask = taskManager.createSubtask(subtaskToCreate);
-        assertNotNull(createdSubtask, "Подзадача должна быть успешно создана");
+        assertNotNull(createdSubtask);
         int subtaskId = createdSubtask.getId();
-
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
@@ -115,80 +113,76 @@ public class SubtaskHandlerTest {
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-
-        assertEquals(200, response.statusCode(), "Ожидается код 200 при успешном получении подзадачи по ID");
-        assertNotNull(response.body(), "Тело ответа не должно быть null");
-        assertFalse(response.body().isEmpty(), "Тело ответа не должно быть пустым");
-        assertTrue(response.body().contains("Test Subtask"), "Ответ должен содержать 'Test Subtask'");
+        assertEquals(200, response.statusCode());
+        assertNotNull(response.body());
+        assertFalse(response.body().isEmpty());
+        assertTrue(response.body().contains("Test Subtask"));
     }
 
     @Test
     public void testGetSubtaskById_NotFound() throws Exception {
-
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:8080/subtasks/999999")) // Несуществующий ID
+                .uri(URI.create("http://localhost:8080/subtasks/999999"))
                 .GET()
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-
-        assertEquals(404, response.statusCode(), "Ожидается код 404 при запросе несуществующей подзадачи");
+        assertEquals(404, response.statusCode());
     }
 
     @Test
     public void testUpdateSubtask_Success() throws Exception {
-
-        Epic epic = new Epic("Test Epic", "Description");
+        Epic epic = new Epic("Epic for Update Subtask", "Description");
         Epic createdEpic = taskManager.createEpic(epic);
+        int epicId = createdEpic.getId();
 
-        Subtask subtaskToCreate = new Subtask("Original Subtask", "Original Description", createdEpic.getId());
+        Subtask subtaskToCreate = new Subtask("Original Subtask", "Original Description", epicId);
         Subtask createdSubtask = taskManager.createSubtask(subtaskToCreate);
-        assertNotNull(createdSubtask, "Подзадача должна быть успешно создана");
+        assertNotNull(createdSubtask);
         int originalId = createdSubtask.getId();
 
-
-        Subtask updatedSubtask = new Subtask("Updated Subtask", "Updated Description", createdEpic.getId());
-        updatedSubtask.setId(originalId); // Устанавливаем ID для обновления
-        updatedSubtask.setStatus(TaskStatus.IN_PROGRESS); // Меняем статус
-
-        String jsonBody = gson.toJson(updatedSubtask);
-
+        String jsonBody = String.format("""
+            {
+              "id": %d,
+              "title": "Updated Subtask Title",
+              "description": "This is the updated description.",
+              "status": "IN_PROGRESS",
+              "epicId": %d
+            }
+            """, originalId, epicId).trim();
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:8080/subtasks/" + originalId))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody)) // Используем POST, как в вашем обработчике
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-
-        assertEquals(200, response.statusCode(), "Ожидается код 200 при успешном обновлении подзадачи");
-        assertNotNull(response.body(), "Тело ответа не должно быть null");
-        assertFalse(response.body().isEmpty(), "Тело ответа не должно быть пустым");
-
+        assertEquals(200, response.statusCode());
+        assertNotNull(response.body());
+        assertFalse(response.body().isEmpty());
 
         Subtask subtaskFromManager = taskManager.getSubtask(originalId);
-        assertNotNull(subtaskFromManager, "Обновленная подзадача должна существовать в менеджере");
-        assertEquals("Updated Subtask", subtaskFromManager.getTitle(), "Название должно быть обновлено");
-        assertEquals("Updated Description", subtaskFromManager.getDescription(), "Описание должно быть обновлено");
-        assertEquals(TaskStatus.IN_PROGRESS, subtaskFromManager.getStatus(), "Статус должен быть обновлен");
+        assertNotNull(subtaskFromManager);
+        assertEquals("Updated Subtask Title", subtaskFromManager.getTitle());
+        assertEquals("This is the updated description.", subtaskFromManager.getDescription());
+        assertEquals(TaskStatus.IN_PROGRESS, subtaskFromManager.getStatus());
     }
 
     @Test
     public void testDeleteSubtask_Success() throws Exception {
-
-        Epic epic = new Epic("Test Epic", "Description");
+        Epic epic = new Epic("Epic for Delete Subtask", "Description");
         Epic createdEpic = taskManager.createEpic(epic);
+        int epicId = createdEpic.getId();
 
-        Subtask subtaskToCreate = new Subtask("Subtask to Delete", "Description", createdEpic.getId());
+        Subtask subtaskToCreate = new Subtask("Subtask to Delete", "Description", epicId);
         Subtask createdSubtask = taskManager.createSubtask(subtaskToCreate);
-        assertNotNull(createdSubtask, "Подзадача должна быть успешно создана");
+        assertNotNull(createdSubtask);
         int subtaskId = createdSubtask.getId();
-
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
@@ -198,17 +192,12 @@ public class SubtaskHandlerTest {
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-
-        assertEquals(200, response.statusCode(), "Ожидается код 200 при успешном удалении подзадачи");
-
-
-
-        assertNull(taskManager.getSubtask(subtaskId), "Подзадача должна быть удалена из менеджера");
+        assertEquals(200, response.statusCode());
+        assertNull(taskManager.getSubtask(subtaskId));
     }
 
     @Test
     public void testDeleteSubtask_NotFound() throws Exception {
-        // Act
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:8080/subtasks/999999"))
@@ -217,13 +206,11 @@ public class SubtaskHandlerTest {
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-
-        assertEquals(404, response.statusCode(), "Ожидается код 404 при удалении несуществующей подзадачи");
+        assertEquals(404, response.statusCode());
     }
 
     @Test
     public void testGetSubtasksByEpicId_Success() throws Exception {
-
         Epic epic = new Epic("Test Epic for Subtasks", "Description");
         Epic createdEpic = taskManager.createEpic(epic);
         int epicId = createdEpic.getId();
@@ -233,7 +220,6 @@ public class SubtaskHandlerTest {
         taskManager.createSubtask(subtask1);
         taskManager.createSubtask(subtask2);
 
-
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:8080/subtasks/epic/" + epicId))
@@ -242,17 +228,15 @@ public class SubtaskHandlerTest {
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-
-        assertEquals(200, response.statusCode(), "Ожидается код 200 при успешном получении подзадач эпика");
-        assertNotNull(response.body(), "Тело ответа не должно быть null");
-        assertFalse(response.body().isEmpty(), "Тело ответа не должно быть пустым");
-        assertTrue(response.body().contains("Subtask 1 for Epic"), "Ответ должен содержать 'Subtask 1 for Epic'");
-        assertTrue(response.body().contains("Subtask 2 for Epic"), "Ответ должен содержать 'Subtask 2 for Epic'");
+        assertEquals(200, response.statusCode());
+        assertNotNull(response.body());
+        assertFalse(response.body().isEmpty());
+        assertTrue(response.body().contains("Subtask 1 for Epic"));
+        assertTrue(response.body().contains("Subtask 2 for Epic"));
     }
 
     @Test
     public void testGetSubtasksByEpicId_EpicNotFound() throws Exception {
-
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:8080/subtasks/epic/999999"))
@@ -261,7 +245,6 @@ public class SubtaskHandlerTest {
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-
-        assertEquals(404, response.statusCode(), "Ожидается код 404 при запросе подзадач несуществующего эпика");
+        assertEquals(404, response.statusCode());
     }
 }

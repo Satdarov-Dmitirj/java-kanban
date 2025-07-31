@@ -1,6 +1,6 @@
+
 package http;
 
-import com.google.gson.Gson;
 import manager.Managers;
 import manager.TaskManager;
 import model.Epic;
@@ -19,14 +19,12 @@ import static org.junit.jupiter.api.Assertions.*;
 public class EpicHandlerTest {
     private HttpTaskServer server;
     private TaskManager taskManager;
-    private Gson gson;
 
     @BeforeEach
     public void setUp() throws Exception {
         taskManager = Managers.getDefault();
         server = new HttpTaskServer(taskManager);
         server.start();
-        gson = new Gson();
     }
 
     @AfterEach
@@ -36,8 +34,10 @@ public class EpicHandlerTest {
 
     @Test
     public void testCreateEpic_Success() throws Exception {
-        Epic epic = new Epic("Test Epic", "Description of Test Epic");
-        String jsonBody = gson.toJson(epic);
+        String jsonBody = "{\n" +
+                "  \"title\": \"Test Epic\",\n" +
+                "  \"description\": \"Description of Test Epic\"\n" +
+                "}";
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
@@ -120,10 +120,11 @@ public class EpicHandlerTest {
         assertNotNull(createdEpic);
         int originalId = createdEpic.getId();
 
-        Epic updatedEpic = new Epic("Updated Epic", "Updated Description");
-        updatedEpic.setId(originalId);
-
-        String jsonBody = gson.toJson(updatedEpic);
+        String jsonBody = "{\n" +
+                "  \"id\": " + originalId + ",\n" +
+                "  \"title\": \"Updated Epic\",\n" +
+                "  \"description\": \"Updated Description\"\n" +
+                "}";
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()

@@ -1,4 +1,3 @@
-
 package http.handler;
 
 import com.google.gson.Gson;
@@ -8,6 +7,8 @@ import manager.TaskManager;
 import model.Task;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class HistoryHandler extends BaseHttpHandler implements HttpHandler {
@@ -21,14 +22,12 @@ public class HistoryHandler extends BaseHttpHandler implements HttpHandler {
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         try {
-
             String method = exchange.getRequestMethod();
             String path = exchange.getRequestURI().getPath();
 
             if ("GET".equals(method) && "/history".equals(path)) {
                 handleGetHistory(exchange);
             } else {
-
                 exchange.sendResponseHeaders(405, -1);
                 exchange.close();
             }
@@ -38,9 +37,9 @@ public class HistoryHandler extends BaseHttpHandler implements HttpHandler {
     }
 
     private void handleGetHistory(HttpExchange exchange) throws IOException {
-
-        List<Task> history = taskManager.getHistory();
-
-        sendText(exchange, history, 200);
+        List<Task> historyFromManager = taskManager.getHistory();
+        List<Task> reversedHistory = new ArrayList<>(historyFromManager);
+        Collections.reverse(reversedHistory);
+        sendText(exchange, reversedHistory, 200);
     }
 }
