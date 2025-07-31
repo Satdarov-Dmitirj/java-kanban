@@ -8,12 +8,10 @@ import java.util.Objects;
 
 public class Epic extends Task {
     private final List<Integer> subtaskIds = new ArrayList<>();
-    private LocalDateTime endTime;
-    private Duration duration = Duration.ZERO;
-    private LocalDateTime startTime;
 
     public Epic(String title, String description) {
         super(title, description);
+        this.setStatus(TaskStatus.NEW);
     }
 
     public Epic(int id, String title, String description) {
@@ -22,13 +20,6 @@ public class Epic extends Task {
 
     public Epic(int id, String title, String description, TaskStatus status) {
         super(id, title, description, status);
-    }
-
-    public Epic(int id, String title, String description, TaskStatus status,
-                LocalDateTime startTime, Duration duration) {
-        super(id, title, description, status, startTime, duration);
-        this.duration = duration;
-        this.startTime = startTime;
     }
 
     public List<Integer> getSubtaskIds() {
@@ -47,74 +38,48 @@ public class Epic extends Task {
 
     public void clearSubtasks() {
         subtaskIds.clear();
-        this.duration = Duration.ZERO;
-        this.startTime = null;
-        this.endTime = null;
-    }
-
-    @Override
-    public LocalDateTime getStartTime() {
-        return startTime;
-    }
-
-    public void setStartTime(LocalDateTime startTime) {
-        this.startTime = startTime;
-    }
-
-    @Override
-    public LocalDateTime getEndTime() {
-        return endTime;
-    }
-
-    public void setEndTime(LocalDateTime endTime) {
-        this.endTime = endTime;
-    }
-
-    @Override
-    public Duration getDuration() {
-        return duration;
-    }
-
-    public void setDuration(Duration duration) {
-        this.duration = duration;
+        this.setStartTime(null);
+        this.setDuration(Duration.ZERO);
     }
 
     public void updateTimeParameters(List<Subtask> subtasks) {
-        if (subtasks.isEmpty()) {
-            this.startTime = null;
-            this.duration = Duration.ZERO;
-            this.endTime = null;
+        if (subtasks == null || subtasks.isEmpty()) {
+            this.setStartTime(null);
+            this.setDuration(Duration.ZERO);
             return;
         }
 
         LocalDateTime earliestStart = null;
         LocalDateTime latestEnd = null;
-        Duration totalDuration = Duration.ZERO;
+        boolean hasValidTimeData = false;
 
         for (Subtask subtask : subtasks) {
-            if (subtask.getStartTime() != null) {
-                if (earliestStart == null || subtask.getStartTime().isBefore(earliestStart)) {
-                    earliestStart = subtask.getStartTime();
+            if (subtask != null && subtask.getStartTime() != null && subtask.getDuration() != null) {
+                hasValidTimeData = true;
+                LocalDateTime start = subtask.getStartTime();
+                LocalDateTime end = start.plus(subtask.getDuration());
+
+                if (earliestStart == null || start.isBefore(earliestStart)) {
+                    earliestStart = start;
                 }
 
-                LocalDateTime subtaskEnd = subtask.getEndTime();
-                if (latestEnd == null || subtaskEnd.isAfter(latestEnd)) {
-                    latestEnd = subtaskEnd;
+                if (latestEnd == null || end.isAfter(latestEnd)) {
+                    latestEnd = end;
                 }
-            }
-
-            if (subtask.getDuration() != null) {
-                totalDuration = totalDuration.plus(subtask.getDuration());
             }
         }
 
-        this.startTime = earliestStart;
-        this.endTime = latestEnd;
-        this.duration = totalDuration;
+        if (hasValidTimeData) {
+            this.setStartTime(earliestStart);
+            this.setDuration(Duration.between(earliestStart, latestEnd));
+        } else {
+            this.setStartTime(null);
+            this.setDuration(Duration.ZERO);
+        }
     }
 
     public void updateStatus(List<Subtask> subtasks) {
-        if (subtasks.isEmpty()) {
+        if (subtasks == null || subtasks.isEmpty()) {
             setStatus(TaskStatus.NEW);
             return;
         }
@@ -123,11 +88,16 @@ public class Epic extends Task {
         boolean allDone = true;
 
         for (Subtask subtask : subtasks) {
+            if (subtask == null) continue;
+
             if (subtask.getStatus() != TaskStatus.NEW) {
                 allNew = false;
             }
             if (subtask.getStatus() != TaskStatus.DONE) {
                 allDone = false;
+            }
+            if (!allNew && !allDone) {
+                break;
             }
         }
 
@@ -141,25 +111,17 @@ public class Epic extends Task {
     }
 
     @Override
-    public TaskType getType() {
-        return TaskType.EPIC;
-    }
-
-    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
         Epic epic = (Epic) o;
-        return Objects.equals(subtaskIds, epic.subtaskIds) &&
-                Objects.equals(endTime, epic.endTime) &&
-                Objects.equals(duration, epic.duration) &&
-                Objects.equals(startTime, epic.startTime);
+        return Objects.equals(subtaskIds, epic.subtaskIds);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), subtaskIds, endTime, duration, startTime);
+        return Objects.hash(super.hashCode(), subtaskIds);
     }
 
     @Override
