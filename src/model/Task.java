@@ -11,37 +11,30 @@ public class Task {
     private TaskStatus status;
     private Duration duration;
     private LocalDateTime startTime;
-    private LocalDateTime endTime;
     private TaskType type;
 
-
     private static final int MIN_ID = 1;
-
 
     public Task(String title, String description) {
         this.title = title;
         this.description = description;
         this.status = TaskStatus.NEW;
         this.type = TaskType.TASK;
+        this.duration = Duration.ZERO; // Инициализация по умолчанию
     }
-
 
     public Task(int id, String title, String description, TaskStatus status) {
-        super();
+        this(title, description);
         this.id = id;
-        this.title = title;
-        this.description = description;
         this.status = status;
-        this.type = TaskType.TASK;
         validateId(id);
     }
-
 
     public Task(int id, String title, String description, TaskStatus status,
                 LocalDateTime startTime, Duration duration) {
         this(id, title, description, status);
         this.startTime = startTime;
-        this.duration = duration;
+        this.duration = duration != null ? duration : Duration.ZERO;
     }
 
     private void validateId(int id) {
@@ -85,11 +78,11 @@ public class Task {
     }
 
     public Duration getDuration() {
-        return duration;
+        return duration != null ? duration : Duration.ZERO;
     }
 
     public void setDuration(Duration duration) {
-        this.duration = duration;
+        this.duration = duration != null ? duration : Duration.ZERO;
     }
 
     public LocalDateTime getStartTime() {
@@ -115,20 +108,19 @@ public class Task {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-
         Task task = (Task) o;
         return id == task.id &&
                 Objects.equals(title, task.title) &&
                 Objects.equals(description, task.description) &&
                 status == task.status &&
-                Objects.equals(duration, task.duration) &&
+                Objects.equals(getDuration(), task.getDuration()) &&
                 Objects.equals(startTime, task.startTime) &&
                 type == task.type;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, title, description, status, duration, startTime, type);
+        return Objects.hash(id, title, description, status, getDuration(), startTime, type);
     }
 
     @Override
@@ -139,8 +131,7 @@ public class Task {
                 ", title='" + title + '\'' +
                 ", status=" + status +
                 ", description='" + description + '\'' +
-                ", duration=" + duration +
-                ", duration=" + duration +
+                ", duration=" + getDuration() +
                 ", startTime=" + startTime +
                 ", endTime=" + getEndTime() +
                 '}';

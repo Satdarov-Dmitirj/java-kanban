@@ -1,4 +1,3 @@
-
 package model;
 
 import java.time.Duration;
@@ -44,7 +43,7 @@ public class Epic extends Task {
     }
 
     public void updateTimeParameters(List<Subtask> subtasks) {
-        if (subtasks.isEmpty()) {
+        if (subtasks == null || subtasks.isEmpty()) {
             this.setStartTime(null);
             this.setDuration(Duration.ZERO);
             return;
@@ -52,31 +51,35 @@ public class Epic extends Task {
 
         LocalDateTime earliestStart = null;
         LocalDateTime latestEnd = null;
-        Duration totalDuration = Duration.ZERO;
+        boolean hasValidTimeData = false;
 
         for (Subtask subtask : subtasks) {
-            if (subtask.getStartTime() != null) {
-                if (earliestStart == null || subtask.getStartTime().isBefore(earliestStart)) {
-                    earliestStart = subtask.getStartTime();
+            if (subtask != null && subtask.getStartTime() != null && subtask.getDuration() != null) {
+                hasValidTimeData = true;
+                LocalDateTime start = subtask.getStartTime();
+                LocalDateTime end = start.plus(subtask.getDuration());
+
+                if (earliestStart == null || start.isBefore(earliestStart)) {
+                    earliestStart = start;
                 }
 
-                LocalDateTime subtaskEnd = subtask.getEndTime();
-                if (subtaskEnd != null && (latestEnd == null || subtaskEnd.isAfter(latestEnd))) {
-                    latestEnd = subtaskEnd;
+                if (latestEnd == null || end.isAfter(latestEnd)) {
+                    latestEnd = end;
                 }
-            }
-
-            if (subtask.getDuration() != null) {
-                totalDuration = totalDuration.plus(subtask.getDuration());
             }
         }
 
-        this.setStartTime(earliestStart);
-        this.setDuration(totalDuration);
+        if (hasValidTimeData) {
+            this.setStartTime(earliestStart);
+            this.setDuration(Duration.between(earliestStart, latestEnd));
+        } else {
+            this.setStartTime(null);
+            this.setDuration(Duration.ZERO);
+        }
     }
 
     public void updateStatus(List<Subtask> subtasks) {
-        if (subtasks.isEmpty()) {
+        if (subtasks == null || subtasks.isEmpty()) {
             setStatus(TaskStatus.NEW);
             return;
         }
@@ -85,6 +88,8 @@ public class Epic extends Task {
         boolean allDone = true;
 
         for (Subtask subtask : subtasks) {
+            if (subtask == null) continue;
+
             if (subtask.getStatus() != TaskStatus.NEW) {
                 allNew = false;
             }
@@ -122,13 +127,13 @@ public class Epic extends Task {
     @Override
     public String toString() {
         return "Epic{" +
-                "id=" + this.getId() +
-                ", title='" + this.getTitle() + '\'' +
-                ", description='" + this.getDescription() + '\'' +
-                ", status=" + this.getStatus() +
-                ", startTime=" + this.getStartTime() +
-                ", duration=" + this.getDuration() +
-                ", endTime=" + this.getEndTime() +
+                "id=" + getId() +
+                ", title='" + getTitle() + '\'' +
+                ", description='" + getDescription() + '\'' +
+                ", status=" + getStatus() +
+                ", startTime=" + getStartTime() +
+                ", duration=" + getDuration() +
+                ", endTime=" + getEndTime() +
                 ", subtaskIds=" + subtaskIds +
                 '}';
     }

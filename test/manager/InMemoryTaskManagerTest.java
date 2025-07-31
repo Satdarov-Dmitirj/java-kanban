@@ -1,10 +1,15 @@
 package manager;
 
-import model.*;
-import org.junit.jupiter.api.*;
+import model.Epic;
+import model.Subtask;
+import model.Task;
+import model.TaskStatus;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class InMemoryTaskManagerTest {
@@ -240,6 +245,7 @@ class InMemoryTaskManagerTest {
     void shouldCalculateEpicTimeWithSubtasks() {
         Epic epic = manager.createEpic(new Epic("Epic", "Desc"));
         LocalDateTime start = LocalDateTime.now();
+
         Subtask subtask1 = new Subtask("Sub1", "Desc", epic.getId());
         subtask1.setStartTime(start);
         subtask1.setDuration(Duration.ofHours(1));
@@ -251,7 +257,7 @@ class InMemoryTaskManagerTest {
         manager.createSubtask(subtask2);
 
         assertEquals(start, epic.getStartTime());
-        assertEquals(Duration.ofHours(2), epic.getDuration()); // Сумма 1h + 1h
-        assertEquals(start.plusHours(3), epic.getEndTime()); // Последняя подзадача заканчивается через 3 часа
+        assertEquals(Duration.ofHours(2), epic.getDuration()); // Сумма продолжительностей
+        assertEquals(start.plusHours(2), epic.getEndTime()); // start + duration (2 часа)
     }
 }
