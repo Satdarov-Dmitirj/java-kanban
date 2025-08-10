@@ -225,46 +225,44 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public void updateEpicTime(int epicId) {
         Epic epic = epics.get(epicId);
-        if (epic == null || epic.getSubtaskIds().isEmpty()) {
+        if (epic == null) return;
+
+        List<Subtask> subtasks = getSubtasksByEpic(epicId);
+        if (subtasks.isEmpty()) {
             epic.setStartTime(null);
             epic.setDuration(Duration.ZERO);
-            epic.setEndTime(null);
             return;
         }
 
         LocalDateTime earliestStart = null;
         LocalDateTime latestEnd = null;
         Duration totalDuration = Duration.ZERO;
+        boolean hasTimeInfo = false;
 
-        for (Integer subtaskId : epic.getSubtaskIds()) {
-            Subtask subtask = subtasks.get(subtaskId);
-            if (subtask != null && subtask.getStartTime() != null) {
+        for (Subtask subtask : subtasks) {
+            if (subtask.getStartTime() != null && subtask.getDuration() != null) {
+                hasTimeInfo = true;
+                LocalDateTime start = subtask.getStartTime();
+                LocalDateTime end = start.plus(subtask.getDuration());
 
-                if (earliestStart == null || subtask.getStartTime().isBefore(earliestStart)) {
-                    earliestStart = subtask.getStartTime();
+                if (earliestStart == null || start.isBefore(earliestStart)) {
+                    earliestStart = start;
                 }
 
-
-                LocalDateTime subtaskEnd = subtask.getEndTime();
-                if (latestEnd == null || subtaskEnd.isAfter(latestEnd)) {
-                    latestEnd = subtaskEnd;
+                if (latestEnd == null || end.isAfter(latestEnd)) {
+                    latestEnd = end;
                 }
 
-
-                if (subtask.getDuration() != null) {
-                    totalDuration = totalDuration.plus(subtask.getDuration());
-                }
+                totalDuration = totalDuration.plus(subtask.getDuration());
             }
         }
 
-        if (earliestStart != null && latestEnd != null) {
+        if (hasTimeInfo) {
             epic.setStartTime(earliestStart);
-            epic.setDuration(totalDuration);
-            epic.setEndTime(latestEnd);
+            epic.setDuration(totalDuration); // Сумма продолжительностей
         } else {
             epic.setStartTime(null);
             epic.setDuration(Duration.ZERO);
-            epic.setEndTime(null);
         }
     }
 
